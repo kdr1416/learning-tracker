@@ -4,5 +4,8 @@ import os
 DATABASE_URL = os.environ.get(
     "DATABASE_URL", "sqlite:///./learning_tracker.db"
 )
-# SQLAlchemy needs postgresql+psycopg for Postgres URLs; keep the env value
-# as-is otherwise (sqlite:///./learning_tracker.db works out of the box).
+# Neon / Supabase / Render Postgres give postgres://... — SQLAlchemy with
+# psycopg 3 needs postgresql+psycopg://, so normalise the scheme here.
+# sqlite:///./learning_tracker.db still works out of the box for local dev.
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)

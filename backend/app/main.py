@@ -2,6 +2,7 @@
 Run: uvicorn app.main:app --reload  (from backend/)
 Docs: http://localhost:8000/docs
 """
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -24,9 +25,17 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="Personal Learning Tracker", version="0.1.0", lifespan=lifespan)
+FRONTEND_ORIGIN = os.environ.get(
+    "FRONTEND_ORIGIN", "https://frontend-ten-smoky-41.vercel.app"
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        FRONTEND_ORIGIN,
+    ],
     allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
 app.include_router(tracks.router, prefix="/api")
