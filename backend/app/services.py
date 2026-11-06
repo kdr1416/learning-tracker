@@ -43,11 +43,11 @@ def evaluate_day_gates(best_quiz_score: int, best_quiz_total: int, work: dict) -
 
     quiz_passed = bool(best_quiz_total) and (best_quiz_score / best_quiz_total) >= 0.75
     return [
-        Gate("quiz", "Trac nghiem dat >= 75% (diem tot nhat)", quiz_passed),
-        Gate("exercise", "Da nop bai tap cuoi ngay", text_ok("exercise_submission")),
-        Gate("test_result", "Da dan ket qua chay test (vd: 4/4 tests passed)", text_ok("test_result")),
-        Gate("explain", "Giai thich lai duoc bai hoc (khong mo tai lieu)", text_ok("explain_answer")),
-        Gate("flow", "Tra loi duoc cau hoi ve luong (flow)", text_ok("flow_answer")),
-        Gate("role", "Tra loi duoc cau hoi ve vai tro trong du an", text_ok("role_answer")),
-        Gate("variant", "Tra loi duoc cau bien the (doi 1 dieu kien)", text_ok("variant_answer")),
+        Gate("quiz", "Trắc nghiệm đạt >= 75% (điểm tốt nhất)", quiz_passed),
+        Gate("exercise", "Đã nộp bài tập cuối ngày", text_ok("exercise_submission")),
+        Gate("test_result", "Đã dán kết quả chạy test (vd: 4/4 tests passed)", text_ok("test_result")),
+        Gate("explain", "Giải thích lại được bài học (không mở tài liệu)", text_ok("explain_answer")),
+        Gate("flow", "Trả lời được câu hỏi về luồng (flow)", text_ok("flow_answer")),
+        Gate("role", "Trả lời được câu hỏi về vai trò trong dự án", text_ok("role_answer")),
+        Gate("variant", "Trả lời được câu biến thể (đổi 1 điều kiện)", text_ok("variant_answer")),
     ]

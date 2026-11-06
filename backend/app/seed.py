@@ -1,13 +1,78 @@
-"""Seed the DB from seed_data.py. Idempotent: if a track already exists,
-do nothing (so user progress is never wiped on restart)."""
+"""Seed the DB from seed_data.py.
+
+First run: insert track, modules, days, quiz questions and checklist.
+Later runs: refresh ONLY the content fields (titles, descriptions,
+objectives, quiz text, checklist text) from seed_data.py, matched by
+slug / day number / checklist order — so a content edit (e.g. adding
+Vietnamese diacritics) reaches an already-seeded database.
+
+Progress is NEVER touched here: QuizAttempt, DayWork (including
+``completed``), ChecklistItem.done and JournalEntry rows are left
+exactly as they are.
+"""
 from sqlalchemy.orm import Session
 
 from . import models
 from .seed_data import CHECKLIST, DAYS, MODULES, TRACK, TREE, dumps
 
 
+def _day_fields(d: dict) -> dict:
+    return {
+        "title": d["title"],
+        "objective": d["objective"],
+        "role_in_project": d["role"],
+        "flow_steps": dumps(d["flow"]),
+        "project_tree": dumps(TREE),
+        "guide_steps": dumps(d["guide"]),
+        "exercise": d["exercise"],
+        "exercise_deliverables": dumps(d["deliverables"]),
+        "exercise_pass_criteria": dumps(d["pass"]),
+        "flow_question": d["flow_q"],
+        "role_question": d["role_q"],
+        "variant_question": d["variant_q"],
+        "explain_prompt": d["explain"],
+    }
+
+
+def _refresh_content(db: Session, track: models.Track) -> None:
+    """Update content fields of an existing seeded track in place."""
+    track.title = TRACK["title"]
+    track.description = TRACK["description"]
+    modules_by_order = {m.order: m for m in track.modules}
+    for m in MODULES:
+        mod = modules_by_order.get(m["order"])
+        if mod is None:
+            continue
+        mod.title = m["title"]
+        mod.description = m["description"]
+        days_by_number = {d.number: d for d in mod.days}
+        for d in [x for x in DAYS if x["module"] == m["order"]]:
+            day = days_by_number.get(d["number"])
+            if day is None:
+                continue
+            for key, value in _day_fields(d).items():
+                setattr(day, key, value)
+            # Quiz questions: matched by position (seed order is stable).
+            questions = sorted(day.quiz_questions, key=lambda q: q.id)
+            for qq, new_q in zip(questions, d["quiz"]):
+                qq.question = new_q["question"]
+                qq.options = dumps(new_q["options"])
+                qq.correct_index = new_q["correct_index"]
+                qq.explanation = new_q["explanation"]
+    # Checklist: matched by order; text/group refresh, done flag untouched.
+    items_by_order = {i.order: i for i in db.query(models.ChecklistItem).all()}
+    for i, (group, text) in enumerate(CHECKLIST):
+        item = items_by_order.get(i)
+        if item is not None:
+            item.group = group
+            item.text = text
+    db.commit()
+
+
 def seed(db: Session) -> None:
-    if db.query(models.Track).first():
+    track = db.query(models.Track).first()
+    if track is not None:
+        _refresh_content(db, track)
         return
     track = models.Track(slug=TRACK["slug"], title=TRACK["title"], description=TRACK["description"])
     db.add(track)
@@ -22,14 +87,7 @@ def seed(db: Session) -> None:
     for d in DAYS:
         day = models.Day(
             module_id=module_by_order[d["module"]].id,
-            number=d["number"], slug=d["slug"], title=d["title"],
-            objective=d["objective"], role_in_project=d["role"],
-            flow_steps=dumps(d["flow"]), project_tree=dumps(TREE),
-            guide_steps=dumps(d["guide"]), exercise=d["exercise"],
-            exercise_deliverables=dumps(d["deliverables"]),
-            exercise_pass_criteria=dumps(d["pass"]),
-            flow_question=d["flow_q"], role_question=d["role_q"],
-            variant_question=d["variant_q"], explain_prompt=d["explain"],
+            number=d["number"], slug=d["slug"], **_day_fields(d),
         )
         db.add(day)
         db.flush()

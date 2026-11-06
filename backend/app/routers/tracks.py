@@ -47,7 +47,7 @@ def list_tracks(db: Session = Depends(get_db)):
 
 @router.get("/method")
 def get_method():
-    """Phuong phap Viet - Test - Giai thich + luat bai kiem tra hang ngay."""
+    """Phương pháp Viết - Test - Giải thích + luật bài kiểm tra hàng ngày."""
     return METHOD
 
 

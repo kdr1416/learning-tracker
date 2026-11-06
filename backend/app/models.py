@@ -89,7 +89,7 @@ class DayWork(Base):
 class ChecklistItem(Base):
     __tablename__ = "checklist_items"
     id = Column(Integer, primary_key=True)
-    group = Column(String, nullable=False)  # e.g. "Hang ngay", "Giai doan 1"
+    group = Column(String, nullable=False)  # e.g. "Hàng ngày", "Giai đoạn 1"
     text = Column(Text, nullable=False)
     order = Column(Integer, default=0)
     done = Column(Boolean, default=False)
