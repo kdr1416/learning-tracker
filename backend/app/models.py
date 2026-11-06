@@ -58,6 +58,10 @@ class Day(Base):
     bug_correct_reason = Column(Integer, nullable=True)  # index into bug_reasons
     # --- v2: Feynman follow-ups ---
     followup_questions = Column(Text, default="[]", server_default="[]")  # JSON list, exactly 2
+    # --- v2: flow simulator scenarios ---
+    sim_scenarios = Column(Text, default="[]", server_default="[]")  # JSON list of {title, input, steps[{status, note}], result}
+    # --- v2: per-step code shown by the simulator's "Xem code" button ---
+    flow_step_code = Column(Text, default="[]", server_default="[]")  # JSON list of {code, note}, 1:1 with flow_steps
     module = relationship("Module", back_populates="days")
     quiz_questions = relationship("QuizQuestion", back_populates="day", cascade="all, delete-orphan")
 

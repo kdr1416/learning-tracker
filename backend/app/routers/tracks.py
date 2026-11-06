@@ -32,6 +32,8 @@ def _day_out(day: models.Day) -> schemas.DayOut:
         bug_reasons=json.loads(day.bug_reasons or "[]"),
         bug_correct_reason=day.bug_correct_reason,
         followup_questions=json.loads(day.followup_questions or "[]"),
+        sim_scenarios=json.loads(day.sim_scenarios or "[]"),
+        flow_step_code=json.loads(day.flow_step_code or "[]"),
         quiz=[schemas.QuizQuestionOut(
             id=q.id, question=q.question,
             options=json.loads(q.options or "[]"), explanation=q.explanation)

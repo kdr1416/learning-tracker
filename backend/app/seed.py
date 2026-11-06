@@ -40,6 +40,8 @@ def _day_fields(d: dict) -> dict:
         "bug_reasons": dumps(d.get("bug_reasons", [])),
         "bug_correct_reason": d.get("bug_correct_reason"),
         "followup_questions": dumps(d.get("followup_questions", [])),
+        "sim_scenarios": dumps(d.get("sim_scenarios", [])),
+        "flow_step_code": dumps(d.get("flow_step_code", [])),
     }
 
 

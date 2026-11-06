@@ -229,6 +229,90 @@ function SkillTreePage({ tracks }: { tracks: Track[] }) {
   )
 }
 
+function badgeLabel(path: string): string {
+  if (path.endsWith('main.py')) return 'Điểm vào'
+  if (path.includes('/routers/')) return 'Router'
+  if (path.includes('/services/')) return 'Service'
+  if (path.includes('/repositories/')) return 'Repo'
+  if (path.endsWith('schemas.py')) return 'Model'
+  if (path.endsWith('models.py')) return 'Bảng DB'
+  if (path.endsWith('database.py')) return 'Kết nối'
+  if (path.startsWith('tests/')) return 'Test'
+  return 'File'
+}
+const BADGE_CLASS: Record<string, string> = {
+  'Điểm vào': 'entry', 'Router': 'router', 'Service': 'service', 'Repo': 'repo',
+  'Model': 'model', 'Bảng DB': 'db', 'Kết nối': 'conn', 'Test': 'test', 'File': 'file',
+}
+
+interface PTreeNode { name: string; path: string; role?: string; children: Map<string, PTreeNode> }
+function buildProjectTree(tree: Record<string, string>): PTreeNode {
+  const root: PTreeNode = { name: '', path: '', children: new Map() }
+  for (const [p, role] of Object.entries(tree)) {
+    const parts = p.split('/')
+    let node = root
+    parts.forEach((part, i) => {
+      const isFile = i === parts.length - 1
+      if (!node.children.has(part)) {
+        node.children.set(part, {
+          name: part, path: parts.slice(0, i + 1).join('/'),
+          role: isFile ? role : undefined, children: new Map(),
+        })
+      }
+      node = node.children.get(part)!
+    })
+  }
+  return root
+}
+function countFiles(n: PTreeNode): number {
+  let c = 0
+  n.children.forEach(ch => { c += ch.role !== undefined ? 1 : countFiles(ch) })
+  return c
+}
+
+function ProjectTree({ tree }: { tree: Record<string, string> }) {
+  const root = buildProjectTree(tree)
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const toggle = (path: string) => setCollapsed(prev => {
+    const next = new Set(prev)
+    if (next.has(path)) next.delete(path)
+    else next.add(path)
+    return next
+  })
+  const renderNode = (node: PTreeNode): React.ReactNode => {
+    if (node.role !== undefined) {
+      const label = badgeLabel(node.path)
+      return (
+        <div className="ptree-file" key={node.path}>
+          <span className="ptree-name">📄 {node.name}</span>
+          <span className={`ptree-badge ptree-badge-${BADGE_CLASS[label]}`}>{label}</span>
+          <span className="ptree-role">{node.role}</span>
+        </div>
+      )
+    }
+    const closed = collapsed.has(node.path)
+    return (
+      <div className="ptree-folder" key={node.path}>
+        <button className="ptree-folder-head" onClick={() => toggle(node.path)}>
+          <span>{closed ? '▸' : '▾'}</span> 📁 {node.name}
+          <span className="ptree-count">{countFiles(node)} file</span>
+        </button>
+        {!closed && (
+          <div className="ptree-children">
+            {[...node.children.values()].map(ch => renderNode(ch))}
+          </div>
+        )}
+      </div>
+    )
+  }
+  return (
+    <div className="ptree">
+      <p className="ptree-intro">Mỗi file làm đúng một việc — bấm vào thư mục để thu gọn / mở ra.</p>
+      {[...root.children.values()].map(ch => renderNode(ch))}
+    </div>
+  )
+}
+
 function DayDetail({ day }: { day: Day }) {
   const [answers, setAnswers] = useState<number[]>(() => day.quiz.map(() => -1))
   const [quizResult, setQuizResult] = useState<{ score: number; total: number; passed: boolean; best_score: number; best_total: number } | null>(null)
@@ -241,7 +325,20 @@ function DayDetail({ day }: { day: Day }) {
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
   // --- v2 interactive state (reset per Day) ---
-  const [flowIdx, setFlowIdx] = useState(0)
+  // --- flow simulator state (reset per Day) ---
+  const [simIdx, setSimIdx] = useState(0)
+  const [simStep, setSimStep] = useState(-1) // -1 = chưa chạy; n = đã chạy tới bước n
+  const [simRunning, setSimRunning] = useState(false)
+  const [codeStep, setCodeStep] = useState<number | null>(null) // bước nào đang mở code
+  const sim = day.sim_scenarios[simIdx] ?? null
+  const simFinished = !!sim && simStep >= 0 &&
+    (simStep === sim.steps.length - 1 || sim.steps[simStep].status === 'fail')
+  useEffect(() => {
+    if (!simRunning || !sim) return
+    if (simFinished || simStep >= sim.steps.length - 1) { setSimRunning(false); return }
+    const t = setTimeout(() => setSimStep(s => s + 1), 900)
+    return () => clearTimeout(t)
+  }, [simRunning, simStep, sim, simFinished])
   const [shuffled, setShuffled] = useState<number[]>([])
   const [picked, setPicked] = useState<number[]>([])
   const [puzzleResult, setPuzzleResult] = useState<{ passed: boolean; first_wrong_position?: number } | null>(null)
@@ -260,7 +357,7 @@ function DayDetail({ day }: { day: Day }) {
   }
   useEffect(() => {
     setAnswers(day.quiz.map(() => -1)); setQuizResult(null); setMsg(''); setErr('')
-    setFlowIdx(0); setPicked([]); setPuzzleResult(null); setBugResult(null)
+    setSimIdx(0); setSimStep(-1); setSimRunning(false); setCodeStep(null); setPicked([]); setPuzzleResult(null); setBugResult(null)
     setSelLine(null); setSelReason(null); setPasteWarn(false)
     setShuffled([...day.flow_steps.keys()].sort(() => Math.random() - 0.5))
     refreshStatus().catch(() => undefined)
@@ -352,22 +449,58 @@ function DayDetail({ day }: { day: Day }) {
           <ul>{day.pitfalls.map((p, i) => <li key={i}>{p}</li>)}</ul>
         </div>
       )}
-      <div className="card"><h3>Sơ đồ luồng — bấm từng bước để đi qua</h3>
-        <div className="flow-diagram">
-          <p className="flow-step-current">Bước {flowIdx + 1}/{day.flow_steps.length}: {day.flow_steps[flowIdx]}</p>
-          <div className="flow-nav">
-            <button className="secondary" disabled={flowIdx === 0} onClick={() => setFlowIdx(i => Math.max(0, i - 1))}>← Bước trước</button>
-            <button className="secondary" disabled={flowIdx === day.flow_steps.length - 1} onClick={() => setFlowIdx(i => Math.min(day.flow_steps.length - 1, i + 1))}>Bước tiếp →</button>
-          </div>
-          <div className="flow-dots">
-            {day.flow_steps.map((_, i) => (
-              <button key={i} aria-label={`Bước ${i + 1}`} className={`flow-dot ${i === flowIdx ? 'active' : ''}`} onClick={() => setFlowIdx(i)} />
+      <div className="card"><h3>Mô phỏng luồng — chọn tình huống, chạy từng bước</h3>
+        {day.sim_scenarios.length === 0 ? <p>Day này chưa có tình huống mô phỏng.</p> : sim && (<>
+          <div className="sim-scenarios">
+            {day.sim_scenarios.map((sc, i) => (
+              <button key={i} className={`sim-scenario ${i === simIdx ? 'active' : ''}`}
+                onClick={() => { setSimIdx(i); setSimStep(-1); setSimRunning(false) }}>{sc.title}</button>
             ))}
           </div>
-        </div>
-        <ol className="flow-list">{day.flow_steps.map((s, i) => <li key={i} className={i === flowIdx ? 'flow-list-current' : ''}>{s}</li>)}</ol>
+          <p className="sim-input"><b>Đầu vào:</b></p>
+          <pre className="sim-input-pre">{sim.input}</pre>
+          <div className="sim-controls">
+            <button className="primary" disabled={simRunning || simFinished}
+              onClick={() => { if (simStep === -1) setSimStep(0); setSimRunning(true) }}>▶ Chạy mô phỏng</button>
+            <button className="secondary" disabled={simRunning || simFinished || simStep >= sim.steps.length - 1}
+              onClick={() => setSimStep(s => s + 1)}>Bước tiếp →</button>
+            <button className="secondary" disabled={simStep === -1 && !simRunning}
+              onClick={() => { setSimStep(-1); setSimRunning(false) }}>Đặt lại</button>
+          </div>
+          <div className="sim-flow-start">▶ Bắt đầu</div>
+          <ol className="sim-track">
+            {day.flow_steps.map((s, i) => {
+              const st = sim.steps[i]
+              const state = i <= simStep ? st.status : (i === simStep + 1 && simRunning ? 'running' : 'pending')
+              return (
+                <li key={i} className={`sim-step sim-${state}`}>
+                  <span className="sim-step-head"><span className="sim-step-icon">
+                    {state === 'ok' ? '✓' : state === 'fail' ? '✗' : state === 'skip' ? '–' : state === 'running' ? '▶' : '○'}
+                  </span><span><b>Bước {i + 1}:</b> {s}</span></span>
+                  {i <= simStep && <span className="sim-step-note">{st.note}</span>}
+                  {day.flow_step_code[i] && (<>
+                    <button className="sim-code-toggle" onClick={() => setCodeStep(codeStep === i ? null : i)}>
+                      {codeStep === i ? '▾ Ẩn code' : '▸ Xem code'}
+                    </button>
+                    {codeStep === i && (
+                      <span className="sim-code-block">
+                        <pre className="sim-code">{day.flow_step_code[i].code}</pre>
+                        <span className="sim-step-note">{day.flow_step_code[i].note}</span>
+                      </span>
+                    )}
+                  </>)}
+                </li>
+              )
+            })}
+          </ol>
+          {simFinished && (
+            <p className={`sim-result ${sim.steps[simStep].status === 'fail' ? 'sim-result-fail' : ''}`}>
+              <b>Kết quả:</b> {sim.result}
+            </p>
+          )}
+        </>)}
         <h3>Cây dự án — file chạm tới</h3>
-        <pre>{Object.entries(day.project_tree).map(([k, v]) => `${k}\n  → ${v}`).join('\n')}</pre></div>
+        <ProjectTree tree={day.project_tree} /></div>
       <div className="card"><h3>Hướng dẫn từng bước</h3><ol>{day.guide_steps.map((s, i) => <li key={i}>{s}</li>)}</ol></div>
       <div className="card">
         <h3>Trắc nghiệm (4 câu, đạt ≥ 75% — điểm tốt nhất được lưu)</h3>

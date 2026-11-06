@@ -235,13 +235,112 @@ input[type="checkbox"] { width: 20px; height: 20px; margin: 0; accent-color: var
 .importance-nice { background: var(--brand-soft); color: var(--brand-dark); }
 
 /* ---------- Flow diagram (step-through) ---------- */
-.flow-diagram { background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
-.flow-step-current { font-size: 17px; font-weight: 700; margin-bottom: 12px; }
-.flow-nav { display: flex; gap: 10px; flex-wrap: wrap; }
-.flow-dots { display: flex; gap: 8px; margin-top: 12px; }
-.flow-dot { width: 12px; height: 12px; border-radius: 50%; padding: 0; background: #cbd5e1; border: 0; cursor: pointer; }
-.flow-dot.active { background: var(--brand); }
-.flow-list-current { font-weight: 700; color: var(--brand-dark); }
+/* ---------- Project tree (file explorer) ---------- */
+.ptree-intro { color: var(--ink-soft); font-size: 14px; margin: 0 0 12px; }
+.ptree-folder-head {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  background: none; border: 0; padding: 8px 10px; border-radius: 10px;
+  font-weight: 700; font-size: 15px; color: var(--ink); cursor: pointer;
+}
+.ptree-folder-head:hover { background: var(--brand-soft); }
+.ptree-count {
+  margin-left: auto; font-size: 12.5px; font-weight: 600; color: var(--muted);
+  background: #f1f5f9; border-radius: 999px; padding: 2px 10px;
+}
+.ptree-children { margin-left: 14px; padding-left: 14px; border-left: 2px solid var(--border); }
+.ptree-file { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 8px 10px; border-radius: 10px; }
+.ptree-file:hover { background: #f8fafc; }
+.ptree-name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; font-size: 14.5px; }
+.ptree-badge { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 2px 10px; }
+.ptree-badge-entry { background: var(--brand-soft); color: var(--brand-dark); }
+.ptree-badge-router { background: #dbeafe; color: #1d4ed8; }
+.ptree-badge-service { background: #fef3c7; color: #92400e; }
+.ptree-badge-repo { background: var(--green-soft); color: #166534; }
+.ptree-badge-model { background: #ede9fe; color: #5b21b6; }
+.ptree-badge-db { background: #f1f5f9; color: #334155; }
+.ptree-badge-conn { background: #ccfbf1; color: #0f766e; }
+.ptree-badge-test { background: #fce7f3; color: #9d174d; }
+.ptree-badge-file { background: #f1f5f9; color: var(--muted); }
+.ptree-role { flex-basis: 100%; font-size: 13.5px; color: var(--ink-soft); padding-left: 26px; line-height: 1.5; }
+
+/* ---------- Flow simulator ---------- */
+.sim-scenarios { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.sim-scenario {
+  padding: 10px 16px; border-radius: 999px; border: 2px solid var(--border);
+  background: #fff; color: var(--ink); font-weight: 600; cursor: pointer;
+}
+.sim-scenario.active { border-color: var(--brand); background: var(--brand-soft); color: var(--brand-dark); }
+.sim-input { margin-bottom: 6px; }
+.sim-input-pre { margin-bottom: 14px; }
+.sim-controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.sim-track { list-style: none; padding: 0; margin: 0 0 12px; display: flex; flex-direction: column; align-items: center; }
+.sim-step {
+  position: relative; width: 100%; max-width: 640px;
+  border: 2px solid var(--border); border-radius: 12px; padding: 12px 14px;
+  margin-bottom: 24px; background: #fff; color: var(--muted);
+}
+.sim-step:last-child { margin-bottom: 0; }
+/* flowchart connector: vertical line + arrowhead down to the next box */
+.sim-step:not(:last-child)::after {
+  content: ''; position: absolute; left: 50%; bottom: -16px; width: 2px; height: 16px;
+  background: #94a3b8; transform: translateX(-50%);
+}
+.sim-step:not(:last-child)::before {
+  content: ''; position: absolute; left: 50%; bottom: -24px; transform: translateX(-50%);
+  border-style: solid; border-width: 8px 6px 0; border-color: #94a3b8 transparent transparent;
+}
+.sim-ok:not(:last-child)::after { background: var(--green); }
+.sim-ok:not(:last-child)::before { border-top-color: var(--green); }
+.sim-fail:not(:last-child)::after { background: #dc2626; }
+.sim-fail:not(:last-child)::before { border-top-color: #dc2626; }
+.sim-running:not(:last-child)::after { background: var(--brand); }
+.sim-running:not(:last-child)::before { border-top-color: var(--brand); }
+.sim-step-head { display: flex; gap: 10px; align-items: flex-start; font-size: 15px; line-height: 1.5; }
+.sim-step-icon { flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; background: #e2e8f0; color: var(--muted); }
+.sim-step-note { display: block; margin: 8px 0 0 34px; font-size: 14px; color: var(--ink-soft); line-height: 1.55; }
+.sim-ok { border-color: var(--green); background: var(--green-soft); color: var(--ink); }
+.sim-ok .sim-step-icon { background: var(--green); color: #fff; }
+.sim-fail { border-color: #dc2626; background: #fef2f2; color: var(--ink); }
+.sim-fail .sim-step-icon { background: #dc2626; color: #fff; }
+.sim-skip { border-style: dashed; background: #f8fafc; }
+.sim-skip .sim-step-icon { background: #e2e8f0; }
+.sim-running { border-color: var(--brand); color: var(--ink); }
+.sim-running .sim-step-icon { background: var(--brand); color: #fff; animation: sim-pulse 0.9s ease-in-out infinite; }
+@keyframes sim-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+.sim-code-toggle {
+  margin: 10px 0 0 34px; background: none; border: 1px solid var(--border); border-radius: 999px;
+  padding: 4px 12px; font-size: 13px; font-weight: 700; color: var(--brand-dark); cursor: pointer;
+}
+.sim-code-toggle:hover { background: var(--brand-soft); }
+.sim-code-block { display: block; margin: 10px 0 0 34px; }
+.sim-code-block .sim-step-note { margin: 8px 0 0; }
+.sim-code { margin: 0; font-size: 13px; }
+.sim-result { position: relative; border-radius: 999px; padding: 14px 20px; background: var(--green-soft); border: 2px solid var(--green); font-size: 15px; line-height: 1.55; text-align: center; max-width: 640px; margin: 24px auto 0; }
+.sim-result::before {
+  content: ''; position: absolute; left: 50%; top: -24px; width: 2px; height: 16px;
+  background: var(--green); transform: translateX(-50%);
+}
+.sim-result::after {
+  content: ''; position: absolute; left: 50%; top: -8px; transform: translateX(-50%);
+  border-style: solid; border-width: 8px 6px 0; border-color: var(--green) transparent transparent;
+}
+.sim-result-fail { background: #fef2f2; border-color: #dc2626; }
+.sim-result-fail::before { background: #dc2626; }
+.sim-result-fail::after { border-top-color: #dc2626; }
+/* flowchart start terminator */
+.sim-flow-start {
+  position: relative; width: fit-content; margin: 0 auto 24px; padding: 8px 22px;
+  border-radius: 999px; border: 2px solid var(--brand); background: var(--brand-soft);
+  color: var(--brand-dark); font-weight: 700;
+}
+.sim-flow-start::after {
+  content: ''; position: absolute; left: 50%; bottom: -16px; width: 2px; height: 16px;
+  background: var(--brand); transform: translateX(-50%);
+}
+.sim-flow-start::before {
+  content: ''; position: absolute; left: 50%; bottom: -24px; transform: translateX(-50%);
+  border-style: solid; border-width: 8px 6px 0; border-color: var(--brand) transparent transparent;
+}
 
 /* ---------- Flow Puzzle ---------- */
 .puzzle-pool { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }

@@ -36,6 +36,8 @@ class DayOut(BaseModel):
     bug_reasons: list[str] = []
     bug_correct_reason: int | None = None
     followup_questions: list[str] = []
+    sim_scenarios: list[dict] = []
+    flow_step_code: list[dict] = []
     quiz: list[QuizQuestionOut] = []
 
     model_config = {"from_attributes": True}

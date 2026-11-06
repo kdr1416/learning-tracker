@@ -14,6 +14,9 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export interface QuizQ { id: number; question: string; options: string[]; explanation: string }
+export interface SimStep { status: 'ok' | 'fail' | 'skip'; note: string }
+export interface SimScenario { title: string; input: string; steps: SimStep[]; result: string }
+export interface StepCode { code: string; note: string }
 export interface Day {
   id: number; number: number; slug: string; title: string; objective: string
   role_in_project: string; flow_steps: string[]; project_tree: Record<string, string>
@@ -24,6 +27,8 @@ export interface Day {
   // the frontend type: the answer key must never reach the browser.
   importance: string; real_world_use: string; pitfalls: string[]
   bug_code: string; bug_reasons: string[]; followup_questions: string[]
+  sim_scenarios: SimScenario[]
+  flow_step_code: StepCode[]
 }
 export interface Module { id: number; slug: string; title: string; description: string; order: number; days: Day[] }
 export interface Track { id: number; slug: string; title: string; description: string; modules: Module[] }
