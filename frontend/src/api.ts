@@ -20,6 +20,10 @@ export interface Day {
   guide_steps: string[]; exercise: string; exercise_deliverables: string[]
   exercise_pass_criteria: string[]; flow_question: string; role_question: string
   variant_question: string; explain_prompt: string; quiz: QuizQ[]
+  // --- v2 fields. bug_line / bug_correct_reason are deliberately NOT in
+  // the frontend type: the answer key must never reach the browser.
+  importance: string; real_world_use: string; pitfalls: string[]
+  bug_code: string; bug_reasons: string[]; followup_questions: string[]
 }
 export interface Module { id: number; slug: string; title: string; description: string; order: number; days: Day[] }
 export interface Track { id: number; slug: string; title: string; description: string; modules: Module[] }
@@ -31,7 +35,22 @@ export interface DayStatus {
 export interface DayWork {
   day_id: number; completed: boolean; exercise_submission: string; test_result: string
   explain_answer: string; flow_answer: string; role_answer: string; variant_answer: string
+  self_note: string; followup_answers: string[]; summary: string
 }
+export interface SkillTreeDay {
+  day_id: number; number: number; title: string
+  state: 'mastered' | 'in_progress' | 'available' | 'locked'
+  gates_passed: number; gates_total: number
+}
+export interface SkillTreeExtension {
+  id: number; title: string; description: string
+  related_day_number: number | null; state: string
+}
+export interface SkillTreeModule {
+  module_id: number; title: string; order: number
+  days: SkillTreeDay[]; extensions: SkillTreeExtension[]
+}
+export interface SkillTree { track_id: number; modules: SkillTreeModule[] }
 export interface ChecklistItem { id: number; group: string; text: string; order: number; done: boolean }
 export interface JournalEntry { id: number; date: string; topic: string; done: string; stuck: string; ai_use: string; can_explain: string; next_step: string }
 export interface Progress {
@@ -51,6 +70,13 @@ export const api = {
   saveWork: (id: number, work: Omit<DayWork, 'day_id' | 'completed'>) =>
     req<DayWork>(`/days/${id}/work`, { method: 'PUT', body: JSON.stringify(work) }),
   completeDay: (id: number) => req<DayStatus>(`/days/${id}/complete`, { method: 'POST' }),
+  skillTree: (trackId: number) => req<SkillTree>(`/tracks/${trackId}/skill-tree`),
+  submitFlowPuzzle: (id: number, order: number[]) =>
+    req<{ passed: boolean; correct_order?: number[]; first_wrong_position?: number }>(
+      `/days/${id}/flow-puzzle`, { method: 'POST', body: JSON.stringify({ order }) }),
+  submitBug: (id: number, line: number, reason: number) =>
+    req<{ passed: boolean; line_correct?: boolean; reason_correct?: boolean }>(
+      `/days/${id}/bug`, { method: 'POST', body: JSON.stringify({ line, reason }) }),
   checklist: () => req<ChecklistItem[]>('/checklist'),
   toggleChecklist: (id: number, done: boolean) =>
     req<ChecklistItem>(`/checklist/${id}`, { method: 'PUT', body: JSON.stringify({ done }) }),

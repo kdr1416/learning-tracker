@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
-import { api, type ChecklistItem, type Day, type DayStatus, type DayWork, type JournalEntry, type Progress, type Track } from './api'
+import { api, type ChecklistItem, type Day, type DayStatus, type DayWork, type JournalEntry, type Progress, type SkillTree, type Track } from './api'
 
-type Route = { page: 'dashboard' | 'days' | 'day' | 'checklist' | 'journal' | 'method'; dayNumber?: number }
+type Route = { page: 'dashboard' | 'days' | 'day' | 'checklist' | 'journal' | 'method' | 'tree'; dayNumber?: number }
 
 function parseHash(): Route {
   const h = window.location.hash.replace(/^#\/?/, '')
   if (h.startsWith('day/')) return { page: 'day', dayNumber: Number(h.slice(4)) }
   if (h === 'days') return { page: 'days' }
+  if (h === 'tree') return { page: 'tree' }
   if (h === 'checklist') return { page: 'checklist' }
   if (h === 'journal') return { page: 'journal' }
   if (h === 'method') return { page: 'method' }
@@ -17,6 +18,7 @@ const go = (hash: string) => { window.location.hash = hash }
 const NAV: { hash: string; label: string; page: Route['page'] }[] = [
   { hash: '#/', label: 'Tổng quan', page: 'dashboard' },
   { hash: '#/days', label: 'Ngày 1–14', page: 'days' },
+  { hash: '#/tree', label: 'Cây kỹ năng', page: 'tree' },
   { hash: '#/checklist', label: 'Checklist', page: 'checklist' },
   { hash: '#/journal', label: 'Nhật ký', page: 'journal' },
   { hash: '#/method', label: 'Phương pháp', page: 'method' },
@@ -58,6 +60,7 @@ export default function App() {
         {error && <div className="error">{error}</div>}
         {route.page === 'dashboard' && <Dashboard />}
         {route.page === 'days' && <DayList tracks={tracks} />}
+        {route.page === 'tree' && <SkillTreePage tracks={tracks} />}
         {route.page === 'day' && day && <DayDetail day={day} />}
         {route.page === 'day' && !day && tracks.length > 0 && <p>Không tìm thấy Day {route.dayNumber}.</p>}
         {route.page === 'checklist' && <ChecklistPage />}
@@ -65,7 +68,7 @@ export default function App() {
         {route.page === 'method' && <MethodPage />}
       </main>
       <footer className="site-footer">
-        <p>Phương pháp: Viết – Test – Giải thích · Một ngày chỉ tính là xong khi qua đủ 7 cổng.</p>
+        <p>Phương pháp: Viết – Test – Giải thích · Một ngày chỉ tính là xong khi qua đủ 6 cổng.</p>
       </footer>
     </>
   )
@@ -84,13 +87,15 @@ function Dashboard() {
         <p className="eyebrow">Lộ trình 3 tháng · 1 dự án duy nhất: Booking API</p>
         <h2>Hôm nay học gì?</h2>
         <p className="hero-text">
-          Mở ngày tiếp theo, làm trắc nghiệm (đạt ≥ 75%), nộp bài tập, trả lời 4 câu hiểu bài,
-          rồi mới bấm hoàn thành. Không tick tay khi chưa qua đủ cổng.
+          Mở ngày tiếp theo, làm trắc nghiệm (đạt ≥ 75%), nộp bài tập, xếp đúng luồng chạy,
+          bắt đúng lỗi trong code, giải thích lại bằng lời của mình rồi mới bấm hoàn thành.
+          Không tick tay khi chưa qua đủ cổng.
         </p>
         <div className="hero-actions">
           <button onClick={() => go(nextDay <= p.total_days ? `#/day/${nextDay}` : '#/days')}>
             {p.completed_days === 0 ? 'Bắt đầu Day 1' : nextDay <= p.total_days ? `Tiếp tục Day ${nextDay}` : 'Xem lại các Day'}
           </button>
+          <button className="secondary" onClick={() => go('#/tree')}>Xem cây kỹ năng</button>
           <button className="secondary" onClick={() => go('#/days')}>Xem danh sách Day</button>
         </div>
       </section>
@@ -157,6 +162,53 @@ function DayList({ tracks }: { tracks: Track[] }) {
   )
 }
 
+const TREE_STATE_LABEL: Record<string, string> = {
+  mastered: '✓ Đã vững', in_progress: 'Đang học', available: 'Đã mở', locked: '🔒 Chưa mở',
+}
+
+function SkillTreePage({ tracks }: { tracks: Track[] }) {
+  const [tree, setTree] = useState<SkillTree | null>(null)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    if (tracks.length === 0) return
+    api.skillTree(tracks[0].id).then(setTree).catch((e: Error) => setError(e.message))
+  }, [tracks])
+  if (error) return <p className="error">Không tải được cây kỹ năng: {error}</p>
+  if (!tree) return <p className="loading">Đang tải cây kỹ năng…</p>
+  return (
+    <div>
+      <div className="page-head">
+        <h2>Cây kỹ năng</h2>
+        <p>Đi theo thứ tự từ trên xuống: hoàn thành Day trước mới mở Day sau. Node nào đã vững thì
+          tính 6/6 cổng. Chủ đề nét đứt là vùng chưa có bài học — biết nó tồn tại để sau này tự tìm.</p>
+      </div>
+      {tree.modules.map(m => (
+        <section className="card" key={m.module_id}>
+          <h3>{m.title}</h3>
+          <div className="tree-nodes">
+            {m.days.map(d => (
+              <button key={d.day_id} className={`tree-node tree-${d.state}`}
+                disabled={d.state === 'locked'}
+                onClick={() => go(`#/day/${d.number}`)}>
+                <span className="tree-node-number">Day {d.number}</span>
+                <span className="tree-node-title">{d.title.replace(/^Day \d+ — /, '')}</span>
+                <span className="tree-node-state">{TREE_STATE_LABEL[d.state]} · {d.gates_passed}/{d.gates_total} cổng</span>
+              </button>
+            ))}
+            {m.extensions.map(e => (
+              <div key={e.id} className="tree-node tree-ext">
+                <span className="tree-node-number">Mở rộng · sau Day {e.related_day_number}</span>
+                <span className="tree-node-title">{e.title}</span>
+                <span className="tree-node-state">{e.description}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  )
+}
+
 function DayDetail({ day }: { day: Day }) {
   const [answers, setAnswers] = useState<number[]>(() => day.quiz.map(() => -1))
   const [quizResult, setQuizResult] = useState<{ score: number; total: number; passed: boolean; best_score: number; best_total: number } | null>(null)
@@ -164,13 +216,37 @@ function DayDetail({ day }: { day: Day }) {
   const [work, setWork] = useState<DayWork>({
     day_id: day.id, completed: false, exercise_submission: '', test_result: '',
     explain_answer: '', flow_answer: '', role_answer: '', variant_answer: '',
+    self_note: '', followup_answers: [], summary: '',
   })
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
+  // --- v2 interactive state (reset per Day) ---
+  const [flowIdx, setFlowIdx] = useState(0)
+  const [shuffled, setShuffled] = useState<number[]>([])
+  const [picked, setPicked] = useState<number[]>([])
+  const [puzzleResult, setPuzzleResult] = useState<{ passed: boolean; first_wrong_position?: number } | null>(null)
+  const [puzzleDone, setPuzzleDone] = useState(false)
+  const [selLine, setSelLine] = useState<number | null>(null)
+  const [selReason, setSelReason] = useState<number | null>(null)
+  const [bugResult, setBugResult] = useState<{ passed: boolean; line_correct?: boolean; reason_correct?: boolean } | null>(null)
+  const [bugDone, setBugDone] = useState(false)
+  const [pasteWarn, setPasteWarn] = useState(false)
+  const refreshStatus = async () => {
+    const s = await api.dayStatus(day.id)
+    setStatus(s)
+    const gate = (k: string) => s.gates.find(g => g.key === k)?.passed ?? false
+    setPuzzleDone(gate('flow_puzzle'))
+    setBugDone(gate('bug'))
+  }
   useEffect(() => {
     setAnswers(day.quiz.map(() => -1)); setQuizResult(null); setMsg(''); setErr('')
-    api.dayStatus(day.id).then(setStatus).catch(() => undefined)
-    api.getWork(day.id).then(setWork).catch(() => undefined)
+    setFlowIdx(0); setPicked([]); setPuzzleResult(null); setBugResult(null)
+    setSelLine(null); setSelReason(null); setPasteWarn(false)
+    setShuffled([...day.flow_steps.keys()].sort(() => Math.random() - 0.5))
+    refreshStatus().catch(() => undefined)
+    api.getWork(day.id).then(w => setWork({
+      ...w, self_note: w.self_note ?? '', followup_answers: w.followup_answers ?? [], summary: w.summary ?? '',
+    })).catch(() => undefined)
   }, [day.id])
   const submitQuiz = async () => {
     if (answers.some(a => a < 0)) { setErr('Hãy chọn đáp án cho cả 4 câu trước khi nộp.'); return }
@@ -178,30 +254,58 @@ function DayDetail({ day }: { day: Day }) {
     try {
       const r = await api.submitQuiz(day.id, answers)
       setQuizResult(r)
-      setStatus(await api.dayStatus(day.id))
+      await refreshStatus()
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
   }
   const saveWork = async () => {
     setErr(''); setMsg('')
     try {
       await api.saveWork(day.id, work)
-      setStatus(await api.dayStatus(day.id))
+      await refreshStatus()
       setMsg('Đã lưu bài làm.')
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+  }
+  const submitPuzzle = async () => {
+    setErr('')
+    if (picked.length !== day.flow_steps.length) { setErr('Hãy xếp đủ các bước vào thứ tự của bạn trước khi nộp.'); return }
+    try {
+      const r = await api.submitFlowPuzzle(day.id, picked)
+      setPuzzleResult(r)
+      if (r.passed) { setPuzzleDone(true); await refreshStatus() }
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+  }
+  const submitBug = async () => {
+    setErr('')
+    if (selLine === null || selReason === null) { setErr('Hãy chọn một dòng code và một lý do trước khi nộp.'); return }
+    try {
+      const r = await api.submitBug(day.id, selLine, selReason)
+      setBugResult(r)
+      if (r.passed) { setBugDone(true); await refreshStatus() }
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
   }
   const complete = async () => {
     setErr(''); setMsg('')
     try {
       const s = await api.completeDay(day.id)
-      setStatus(s); setMsg('Chúc mừng — Day này đã hoàn thành (đủ 7 cổng).')
+      setStatus(s); setMsg('Chúc mừng — Day này đã hoàn thành (đủ 6 cổng).')
     } catch (e) {
       const m = e instanceof Error ? e.message : String(e)
       setErr(`Chưa hoàn thành được. Còn thiếu: ${m}`)
-      setStatus(await api.dayStatus(day.id))
+      await refreshStatus()
     }
   }
   const set = (k: keyof DayWork, v: string) => setWork(w => ({ ...w, [k]: v }))
+  const setFollowup = (i: number, v: string) => setWork(w => {
+    const a = [...(w.followup_answers ?? [])]
+    while (a.length < 2) a.push('')
+    a[i] = v
+    return { ...w, followup_answers: a }
+  })
   const passedGates = status ? status.gates.filter(g => g.passed).length : 0
+  const importanceLabel: Record<string, string> = {
+    must: 'Bắt buộc phải vững', should: 'Nên vững', nice: 'Biết thêm thì tốt',
+  }
+  const bugLines = day.bug_code ? day.bug_code.split('\n') : []
   return (
     <div>
       <button className="secondary" onClick={() => go('#/days')}>← Tất cả Day</button>
@@ -212,13 +316,36 @@ function DayDetail({ day }: { day: Day }) {
           <p className="muted">
             {status.completed
               ? 'Day này đã hoàn thành.'
-              : `Đã qua ${passedGates}/7 cổng · Điểm trắc nghiệm tốt nhất: ${status.best_quiz_score}/${status.best_quiz_total}`}
+              : `Đã qua ${passedGates}/6 cổng · Điểm trắc nghiệm tốt nhất: ${status.best_quiz_score}/${status.best_quiz_total}`}
           </p>
         )}
       </div>
       <div className="card"><h3>Mục tiêu</h3><p>{day.objective}</p>
         <h3>Vai trò trong dự án Booking API</h3><p>{day.role_in_project}</p></div>
-      <div className="card"><h3>Sơ đồ luồng</h3><ol className="flow-list">{day.flow_steps.map((s, i) => <li key={i}>{s}</li>)}</ol>
+      {(day.real_world_use || day.pitfalls.length > 0) && (
+        <div className="card ent-card">
+          <h3>Thẻ doanh nghiệp — kiến thức này để làm gì</h3>
+          <p><span className={`importance-badge importance-${day.importance}`}>
+            {importanceLabel[day.importance] ?? 'Nên vững'}</span></p>
+          <p>{day.real_world_use}</p>
+          <h3>Lỗi người mới hay gặp</h3>
+          <ul>{day.pitfalls.map((p, i) => <li key={i}>{p}</li>)}</ul>
+        </div>
+      )}
+      <div className="card"><h3>Sơ đồ luồng — bấm từng bước để đi qua</h3>
+        <div className="flow-diagram">
+          <p className="flow-step-current">Bước {flowIdx + 1}/{day.flow_steps.length}: {day.flow_steps[flowIdx]}</p>
+          <div className="flow-nav">
+            <button className="secondary" disabled={flowIdx === 0} onClick={() => setFlowIdx(i => Math.max(0, i - 1))}>← Bước trước</button>
+            <button className="secondary" disabled={flowIdx === day.flow_steps.length - 1} onClick={() => setFlowIdx(i => Math.min(day.flow_steps.length - 1, i + 1))}>Bước tiếp →</button>
+          </div>
+          <div className="flow-dots">
+            {day.flow_steps.map((_, i) => (
+              <button key={i} aria-label={`Bước ${i + 1}`} className={`flow-dot ${i === flowIdx ? 'active' : ''}`} onClick={() => setFlowIdx(i)} />
+            ))}
+          </div>
+        </div>
+        <ol className="flow-list">{day.flow_steps.map((s, i) => <li key={i} className={i === flowIdx ? 'flow-list-current' : ''}>{s}</li>)}</ol>
         <h3>Cây dự án — file chạm tới</h3>
         <pre>{Object.entries(day.project_tree).map(([k, v]) => `${k}\n  → ${v}`).join('\n')}</pre></div>
       <div className="card"><h3>Hướng dẫn từng bước</h3><ol>{day.guide_steps.map((s, i) => <li key={i}>{s}</li>)}</ol></div>
@@ -251,19 +378,95 @@ function DayDetail({ day }: { day: Day }) {
         <textarea rows={2} value={work.test_result} onChange={e => set('test_result', e.target.value)} />
       </div>
       <div className="card">
-        <h3>Kiểm tra hiểu bài (mỗi câu cần ≥ 20 ký tự)</h3>
-        <label>{day.explain_prompt}</label>
-        <textarea rows={3} value={work.explain_answer} onChange={e => set('explain_answer', e.target.value)} />
-        <label>Câu hỏi luồng: {day.flow_question}</label>
-        <textarea rows={3} value={work.flow_answer} onChange={e => set('flow_answer', e.target.value)} />
-        <label>Câu hỏi vai trò: {day.role_question}</label>
-        <textarea rows={3} value={work.role_answer} onChange={e => set('role_answer', e.target.value)} />
-        <label>Câu biến thể: {day.variant_question}</label>
-        <textarea rows={3} value={work.variant_answer} onChange={e => set('variant_answer', e.target.value)} />
+        <h3>Flow Puzzle — xếp đúng luồng chạy</h3>
+        {puzzleDone ? (
+          <p className="ok">Đã xếp đúng luồng — cổng này qua rồi.</p>
+        ) : (
+          <>
+            <p className="muted">Bấm một bước để đưa nó vào thứ tự của bạn. Bấm lại một bước đã xếp để gỡ ra.</p>
+            <p><b>Các bước chưa xếp:</b></p>
+            <div className="puzzle-pool">
+              {shuffled.filter(i => !picked.includes(i)).map(i => (
+                <button key={i} className="secondary puzzle-step" onClick={() => setPicked(p => [...p, i])}>
+                  {day.flow_steps[i]}
+                </button>
+              ))}
+            </div>
+            <p><b>Thứ tự của bạn:</b></p>
+            <ol className="puzzle-order">
+              {picked.map((i, pos) => (
+                <li key={i}><button className="secondary puzzle-step" onClick={() => setPicked(p => p.filter(x => x !== i))}>
+                  {pos + 1}. {day.flow_steps[i]} <span aria-hidden>✕</span>
+                </button></li>
+              ))}
+              {picked.length === 0 && <li className="muted">Chưa xếp bước nào.</li>}
+            </ol>
+            <button onClick={submitPuzzle}>Nộp thứ tự</button>{' '}
+            <button className="secondary" onClick={() => { setPicked([]); setPuzzleResult(null); setShuffled([...day.flow_steps.keys()].sort(() => Math.random() - 0.5)) }}>Xếp lại từ đầu</button>
+            {puzzleResult && !puzzleResult.passed && (
+              <p className="error">Chưa đúng — vị trí đầu tiên sai là bước thứ {(puzzleResult.first_wrong_position ?? 0) + 1} trong thứ tự của bạn. Đọc lại sơ đồ luồng phía trên rồi xếp lại.</p>
+            )}
+          </>
+        )}
+      </div>
+      <div className="card">
+        <h3>Spot the Bug — bắt đúng lỗi trong đoạn code</h3>
+        {bugLines.length === 0 ? (
+          <p className="muted">Day này chưa có bài Spot the Bug.</p>
+        ) : bugDone ? (
+          <p className="ok">Đã bắt đúng lỗi — cổng này qua rồi.</p>
+        ) : (
+          <>
+            <p className="muted">Đoạn code dưới đây có đúng <b>một</b> dòng sai. Bấm chọn dòng nghi ngờ, rồi chọn lý do.</p>
+            <div className="bug-code">
+              {bugLines.map((line, i) => (
+                <button key={i} className={`bug-line ${selLine === i ? 'selected' : ''}`} onClick={() => setSelLine(i)}>
+                  <span className="bug-line-no">{i}</span><code>{line || ' '}</code>
+                </button>
+              ))}
+            </div>
+            <p><b>Vì sao dòng đó sai?</b></p>
+            {day.bug_reasons.map((r, i) => (
+              <button key={i} className={`quiz-opt ${selReason === i ? 'selected' : ''}`} onClick={() => setSelReason(i)}>
+                <span className="quiz-opt-letter">{String.fromCharCode(65 + i)}</span>{r}
+              </button>
+            ))}
+            <button onClick={submitBug}>Nộp đáp án</button>
+            {bugResult && !bugResult.passed && (
+              <p className="error">
+                Chưa đúng — dòng bạn chọn {bugResult.line_correct ? 'đúng' : 'sai'}, lý do bạn chọn {bugResult.reason_correct ? 'đúng' : 'sai'}.
+                {bugResult.line_correct ? ' Đọc lại lý thuyết rồi chọn lý do khác.' : ' Đọc kỹ lại từng dòng rồi chọn lại.'}
+              </p>
+            )}
+          </>
+        )}
+      </div>
+      <div className="card">
+        <h3>Vòng Feynman — giải thích lại bằng lời của mình</h3>
+        <p className="muted">1. Chọn khái niệm (chính là Day này) → 2. Giải thích lại → 3. Trả lời câu biến thể →
+          4. Học lại chỗ còn bí → 5. Tóm tắt cuối Day. Còn bí ở cổng nào thì quay lại phần hướng dẫn
+          từng bước phía trên, làm lại từ file trống, rồi viết lại bản tóm tắt.</p>
+        <label>Giải thích lại bằng lời của mình (ít nhất 2 câu, ≥ 80 ký tự — không copy)</label>
+        <textarea rows={4} value={work.self_note}
+          onChange={e => set('self_note', e.target.value)}
+          onPaste={e => { e.preventDefault(); setPasteWarn(true) }}
+          placeholder="Gõ bằng lời của mình — không dán từ nơi khác." />
+        {pasteWarn && <p className="error">Đã chặn dán — hãy gõ bằng lời của mình, đó mới là bằng chứng bạn hiểu.</p>}
+        {day.followup_questions.map((q, i) => (
+          <div key={i}>
+            <label>Câu biến thể {i + 1}: {q}</label>
+            <textarea rows={3} value={work.followup_answers?.[i] ?? ''} onChange={e => setFollowup(i, e.target.value)} />
+          </div>
+        ))}
+        <label>Bản tóm tắt cuối Day (≥ 80 ký tự, viết như đang dạy lại cho người khác)</label>
+        <textarea rows={4} value={work.summary} onChange={e => set('summary', e.target.value)} />
+        <h3>5 câu tự kiểm tra cuối Day</h3>
+        <p className="muted">4 câu trắc nghiệm ở trên + 1 câu biến thể: <b>{day.variant_question}</b></p>
+        <ol>{day.quiz.map(q => <li key={q.id}>{q.question}</li>)}</ol>
         <button onClick={saveWork}>Lưu bài làm</button>
       </div>
       <div className="card">
-        <h3>7 cổng hoàn thành {status && <span className="pill">{passedGates}/7</span>}</h3>
+        <h3>6 cổng hoàn thành {status && <span className="pill">{passedGates}/6</span>}</h3>
         {status ? status.gates.map(g => (
           <p key={g.key} className={g.passed ? 'gate-pass' : 'gate-fail'}>{g.passed ? '✓' : '✗'} {g.label}</p>
         )) : <p>Đang tải…</p>}

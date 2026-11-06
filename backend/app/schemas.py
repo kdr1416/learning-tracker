@@ -27,6 +27,15 @@ class DayOut(BaseModel):
     role_question: str
     variant_question: str
     explain_prompt: str
+    # --- v2 fields (defaults keep old payloads valid) ---
+    importance: str = "should"
+    real_world_use: str = ""
+    pitfalls: list[str] = []
+    bug_code: str = ""
+    bug_line: int | None = None
+    bug_reasons: list[str] = []
+    bug_correct_reason: int | None = None
+    followup_questions: list[str] = []
     quiz: list[QuizQuestionOut] = []
 
     model_config = {"from_attributes": True}
@@ -69,6 +78,27 @@ class QuizAttemptOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class FlowPuzzleIn(BaseModel):
+    order: list[int] = Field(..., min_length=1)
+
+
+class FlowPuzzleOut(BaseModel):
+    passed: bool
+    correct_order: list[int] | None = None
+    first_wrong_position: int | None = None
+
+
+class BugIn(BaseModel):
+    line: int
+    reason: int
+
+
+class BugOut(BaseModel):
+    passed: bool
+    line_correct: bool | None = None
+    reason_correct: bool | None = None
+
+
 class DayWorkIn(BaseModel):
     exercise_submission: str = ""
     test_result: str = ""
@@ -76,6 +106,11 @@ class DayWorkIn(BaseModel):
     flow_answer: str = ""
     role_answer: str = ""
     variant_answer: str = ""
+    # --- v2 fields (stored as given; thresholds are enforced by the gates,
+    # not by this endpoint, so drafts can be saved incrementally) ---
+    self_note: str = ""
+    followup_answers: list[str] = []
+    summary: str = ""
 
 
 class DayWorkOut(DayWorkIn):
@@ -98,6 +133,36 @@ class DayStatusOut(BaseModel):
     gates: list[GateOut]
     all_gates_passed: bool
     missing: list[str]
+
+
+class SkillTreeDayOut(BaseModel):
+    day_id: int
+    number: int
+    title: str
+    state: str  # mastered | in_progress | available | locked
+    gates_passed: int
+    gates_total: int
+
+
+class SkillTreeExtensionOut(BaseModel):
+    id: int
+    title: str
+    description: str
+    related_day_number: int | None = None
+    state: str = "unexplored"
+
+
+class SkillTreeModuleOut(BaseModel):
+    module_id: int
+    title: str
+    order: int
+    days: list[SkillTreeDayOut] = []
+    extensions: list[SkillTreeExtensionOut] = []
+
+
+class SkillTreeOut(BaseModel):
+    track_id: int
+    modules: list[SkillTreeModuleOut] = []
 
 
 class ChecklistItemOut(BaseModel):

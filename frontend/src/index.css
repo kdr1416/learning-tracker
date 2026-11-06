@@ -176,6 +176,62 @@ input[type="checkbox"] { width: 20px; height: 20px; margin: 0; accent-color: var
   border-radius: 999px; padding: 4px 10px; margin-bottom: 8px;
 }
 
+/* ---------- Skill tree ---------- */
+.tree-nodes { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.tree-node {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  text-align: left; padding: 16px; border-radius: 12px; min-height: 104px;
+  background: #fff; border: 2px solid var(--border); color: var(--ink);
+}
+.tree-node:hover:not(:disabled) { border-color: var(--brand); }
+.tree-mastered { border-color: var(--green); background: var(--green-soft); }
+.tree-in_progress { border-color: var(--amber); background: #fef3c7; }
+.tree-available { border-color: var(--brand); }
+.tree-locked { background: #f1f5f9; color: var(--muted); border-style: dashed; }
+.tree-ext { border: 2px dashed #94a3b8; background: #f8fafc; cursor: default; }
+.tree-node-number { font-size: 12.5px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--brand); }
+.tree-locked .tree-node-number { color: var(--muted); }
+.tree-node-title { font-size: 15px; font-weight: 600; line-height: 1.45; }
+.tree-node-state { font-size: 13.5px; color: var(--ink-soft); }
+
+/* ---------- Enterprise card ---------- */
+.ent-card { border-left: 4px solid var(--brand); }
+.importance-badge {
+  display: inline-block; font-size: 13px; font-weight: 700; border-radius: 999px; padding: 4px 12px;
+}
+.importance-must { background: var(--red-soft); color: var(--red); }
+.importance-should { background: #fef3c7; color: var(--amber); }
+.importance-nice { background: var(--brand-soft); color: var(--brand-dark); }
+
+/* ---------- Flow diagram (step-through) ---------- */
+.flow-diagram { background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+.flow-step-current { font-size: 17px; font-weight: 700; margin-bottom: 12px; }
+.flow-nav { display: flex; gap: 10px; flex-wrap: wrap; }
+.flow-dots { display: flex; gap: 8px; margin-top: 12px; }
+.flow-dot { width: 12px; height: 12px; border-radius: 50%; padding: 0; background: #cbd5e1; border: 0; cursor: pointer; }
+.flow-dot.active { background: var(--brand); }
+.flow-list-current { font-weight: 700; color: var(--brand-dark); }
+
+/* ---------- Flow Puzzle ---------- */
+.puzzle-pool { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.puzzle-step { margin: 0; text-align: left; }
+.puzzle-order { padding-left: 22px; }
+.puzzle-order li { margin-bottom: 8px; }
+.puzzle-order .puzzle-step { width: 100%; }
+
+/* ---------- Spot the Bug ---------- */
+.bug-code { background: #0f172a; border-radius: 12px; padding: 8px; margin-bottom: 12px; overflow-x: auto; }
+.bug-line {
+  display: flex; gap: 12px; align-items: baseline; width: 100%; text-align: left;
+  background: transparent; color: #e2e8f0; padding: 4px 8px; border-radius: 8px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13.5px; font-weight: 400;
+}
+.bug-line:hover { background: rgba(255, 255, 255, 0.08); }
+.bug-line.selected { background: var(--brand); color: #fff; outline: 2px solid #93c5fd; }
+.bug-line-no { flex: 0 0 20px; text-align: right; color: #64748b; font-weight: 700; }
+.bug-line.selected .bug-line-no { color: #bfdbfe; }
+.bug-line code { background: transparent; padding: 0; color: inherit; font-size: inherit; white-space: pre; }
+
 /* ---------- Feedback ---------- */
 .error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 14px 16px; border-radius: 12px; margin-bottom: 16px; }
 .ok { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 14px 16px; border-radius: 12px; margin: 12px 0; }

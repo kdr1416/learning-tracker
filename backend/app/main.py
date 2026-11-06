@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import Base, SessionLocal, engine
+from .migrate import migrate
 from .routers import checklist, days, journal, progress, tracks
 from .seed import seed
 
@@ -16,6 +17,10 @@ from .seed import seed
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    # v2 columns on an existing (v1) database: create_all never adds columns,
+    # so the idempotent migration runs before seeding. Additive only, progress
+    # rows are never touched.
+    migrate(engine)
     db = SessionLocal()
     try:
         seed(db)

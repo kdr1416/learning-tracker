@@ -33,13 +33,19 @@ def test_no_existing_is_create():
 
 def _full_work():
     txt = "Day la cau tra loi day du hon hai muoi ky tu de qua cong."
+    note = ("Pydantic kiem tra du lieu ngay khi request toi, sai thi tra 422. "
+            "Nho vay service khong bao gio nhan du lieu ban tu client.")
+    summary = ("Hom nay minh hieu Pydantic la cua ngo dau tien cua API: no parse va "
+               "validate body truoc khi vao service, sai thi tra 422 va khong cham DB.")
     return {"exercise_submission": txt, "test_result": txt, "explain_answer": txt,
-            "flow_answer": txt, "role_answer": txt, "variant_answer": txt}
+            "flow_answer": txt, "role_answer": txt, "variant_answer": txt,
+            "flow_puzzle_passed": True, "bug_passed": True,
+            "self_note": note, "followup_answers": [txt, txt], "summary": summary}
 
 
 def test_gate_all_pass_with_quiz_75_and_full_work():
     gates = evaluate_day_gates(3, 4, _full_work())
-    assert len(gates) == 7
+    assert len(gates) == 6
     assert all(g.passed for g in gates)
 
 
@@ -48,11 +54,11 @@ def test_gate_quiz_below_75_fails():
     assert [g for g in gates if g.key == "quiz"][0].passed is False
 
 
-def test_gate_short_answer_fails():
+def test_gate_short_self_note_fails():
     work = _full_work()
-    work["explain_answer"] = "hieu roi"
+    work["self_note"] = "hieu roi"
     gates = evaluate_day_gates(4, 4, work)
-    assert [g for g in gates if g.key == "explain"][0].passed is False
+    assert [g for g in gates if g.key == "self_note"][0].passed is False
 
 
 def test_gate_empty_work_fails_all_but_quiz():

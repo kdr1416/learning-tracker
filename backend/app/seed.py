@@ -13,7 +13,7 @@ exactly as they are.
 from sqlalchemy.orm import Session
 
 from . import models
-from .seed_data import CHECKLIST, DAYS, MODULES, TRACK, TREE, dumps
+from .seed_data import CHECKLIST, DAYS, EXTENSION_TOPICS, MODULES, TRACK, TREE, dumps
 
 
 def _day_fields(d: dict) -> dict:
@@ -31,7 +31,31 @@ def _day_fields(d: dict) -> dict:
         "role_question": d["role_q"],
         "variant_question": d["variant_q"],
         "explain_prompt": d["explain"],
+        # --- v2 content (defaults keep the v1 seed working unchanged) ---
+        "importance": d.get("importance", "should"),
+        "real_world_use": d.get("real_world_use", ""),
+        "pitfalls": dumps(d.get("pitfalls", [])),
+        "bug_code": d.get("bug_code", ""),
+        "bug_line": d.get("bug_line"),
+        "bug_reasons": dumps(d.get("bug_reasons", [])),
+        "bug_correct_reason": d.get("bug_correct_reason"),
+        "followup_questions": dumps(d.get("followup_questions", [])),
     }
+
+
+def _refresh_extension_topics(db: Session, track_id: int) -> None:
+    """Sync Unexplored Scope nodes: matched by title, content only."""
+    existing = {t.title: t for t in db.query(models.ExtensionTopic).filter_by(track_id=track_id).all()}
+    for i, t in enumerate(EXTENSION_TOPICS):
+        row = existing.get(t["title"])
+        if row is None:
+            db.add(models.ExtensionTopic(
+                track_id=track_id, related_day_number=t.get("related_day_number"),
+                title=t["title"], description=t.get("description", ""), order=i))
+        else:
+            row.related_day_number = t.get("related_day_number")
+            row.description = t.get("description", "")
+            row.order = i
 
 
 def _refresh_content(db: Session, track: models.Track) -> None:
@@ -66,6 +90,7 @@ def _refresh_content(db: Session, track: models.Track) -> None:
         if item is not None:
             item.group = group
             item.text = text
+    _refresh_extension_topics(db, track.id)
     db.commit()
 
 
@@ -98,4 +123,5 @@ def seed(db: Session) -> None:
                 explanation=qq["explanation"]))
     for i, (group, text) in enumerate(CHECKLIST):
         db.add(models.ChecklistItem(group=group, text=text, order=i))
+    _refresh_extension_topics(db, track.id)
     db.commit()

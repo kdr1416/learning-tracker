@@ -47,8 +47,32 @@ class Day(Base):
     role_question = Column(Text, default="")
     variant_question = Column(Text, default="")
     explain_prompt = Column(Text, default="")
+    # --- v2: Enterprise Context Card ---
+    importance = Column(String, default="should", server_default="should")  # must | should | nice
+    real_world_use = Column(Text, default="", server_default="")
+    pitfalls = Column(Text, default="[]", server_default="[]")  # JSON list of strings
+    # --- v2: Spot the Bug ---
+    bug_code = Column(Text, default="", server_default="")
+    bug_line = Column(Integer, nullable=True)  # 0-based index of the wrong line
+    bug_reasons = Column(Text, default="[]", server_default="[]")  # JSON list of 4 strings
+    bug_correct_reason = Column(Integer, nullable=True)  # index into bug_reasons
+    # --- v2: Feynman follow-ups ---
+    followup_questions = Column(Text, default="[]", server_default="[]")  # JSON list, exactly 2
     module = relationship("Module", back_populates="days")
     quiz_questions = relationship("QuizQuestion", back_populates="day", cascade="all, delete-orphan")
+
+
+class ExtensionTopic(Base):
+    """Unexplored Scope node on the skill tree: a related concept the
+    learner usually does not know to look for (e.g. Bcrypt after basic
+    login). Content only — no progress attached."""
+    __tablename__ = "extension_topics"
+    id = Column(Integer, primary_key=True)
+    track_id = Column(Integer, ForeignKey("tracks.id"), nullable=False)
+    related_day_number = Column(Integer, nullable=True)
+    title = Column(String, nullable=False)
+    description = Column(Text, default="")
+    order = Column(Integer, default=0)
 
 
 class QuizQuestion(Base):
@@ -84,6 +108,12 @@ class DayWork(Base):
     role_answer = Column(Text, default="")
     variant_answer = Column(Text, default="")
     completed = Column(Boolean, default=False)
+    # --- v2 gate results (v1 text fields above stay, but stop being gates) ---
+    flow_puzzle_passed = Column(Boolean, default=False, server_default="0")
+    bug_passed = Column(Boolean, default=False, server_default="0")
+    self_note = Column(Text, default="", server_default="")
+    followup_answers = Column(Text, default="[]", server_default="[]")  # JSON list of strings
+    summary = Column(Text, default="", server_default="")  # final Feynman summary
 
 
 class ChecklistItem(Base):
