@@ -179,32 +179,52 @@ function SkillTreePage({ tracks }: { tracks: Track[] }) {
     <div>
       <div className="page-head">
         <h2>Cây kỹ năng</h2>
-        <p>Đi theo thứ tự từ trên xuống: hoàn thành Day trước mới mở Day sau. Node nào đã vững thì
-          tính 6/6 cổng. Chủ đề nét đứt là vùng chưa có bài học — biết nó tồn tại để sau này tự tìm.</p>
+        <p>Đi từ trên xuống theo thứ tự Day: hoàn thành Day trước mới mở Day sau. Đường thân chính
+          là 14 Day nối nhau; nhánh rẽ ngang là chủ đề mở rộng gắn với đúng Day liên quan — biết
+          nó tồn tại để sau này tự tìm.</p>
       </div>
-      {tree.modules.map(m => (
-        <section className="card" key={m.module_id}>
-          <h3>{m.title}</h3>
-          <div className="tree-nodes">
+      <div className="tree-trunk">
+        {tree.modules.map(m => (
+          <div key={m.module_id} className="tree-module">
+            <div className="tree-module-label">
+              <span className="tree-dot tree-dot-module" />
+              <span>{m.title}</span>
+            </div>
             {m.days.map(d => (
-              <button key={d.day_id} className={`tree-node tree-${d.state}`}
-                disabled={d.state === 'locked'}
-                onClick={() => go(`#/day/${d.number}`)}>
-                <span className="tree-node-number">Day {d.number}</span>
-                <span className="tree-node-title">{d.title.replace(/^Day \d+ — /, '')}</span>
-                <span className="tree-node-state">{TREE_STATE_LABEL[d.state]} · {d.gates_passed}/{d.gates_total} cổng</span>
-              </button>
+              <div key={d.day_id}>
+                <div className="tree-row">
+                  <span className={`tree-dot tree-dot-${d.state}`} />
+                  <button className={`tree-node tree-${d.state}`}
+                    disabled={d.state === 'locked'}
+                    onClick={() => go(`#/day/${d.number}`)}>
+                    <span className="tree-node-number">Day {d.number}</span>
+                    <span className="tree-node-title">{d.title.replace(/^Day \d+ — /, '')}</span>
+                    <span className="tree-node-state">{TREE_STATE_LABEL[d.state]} · {d.gates_passed}/{d.gates_total} cổng</span>
+                  </button>
+                </div>
+                {m.extensions.filter(e => e.related_day_number === d.number).map(e => (
+                  <div key={e.id} className="tree-row tree-row-branch">
+                    <div className="tree-node tree-ext">
+                      <span className="tree-node-number">Mở rộng · sau Day {e.related_day_number}</span>
+                      <span className="tree-node-title">{e.title}</span>
+                      <span className="tree-node-state">{e.description}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ))}
-            {m.extensions.map(e => (
-              <div key={e.id} className="tree-node tree-ext">
-                <span className="tree-node-number">Mở rộng · sau Day {e.related_day_number}</span>
-                <span className="tree-node-title">{e.title}</span>
-                <span className="tree-node-state">{e.description}</span>
+            {m.extensions.filter(e => !m.days.some(d => d.number === e.related_day_number)).map(e => (
+              <div key={e.id} className="tree-row tree-row-branch">
+                <div className="tree-node tree-ext">
+                  <span className="tree-node-number">Mở rộng</span>
+                  <span className="tree-node-title">{e.title}</span>
+                  <span className="tree-node-state">{e.description}</span>
+                </div>
               </div>
             ))}
           </div>
-        </section>
-      ))}
+        ))}
+      </div>
     </div>
   )
 }

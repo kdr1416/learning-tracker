@@ -137,13 +137,13 @@ effort and is split per Module.
 
 **Purpose**: Full verification and production deploy
 
-- [ ] T046 Run `quickstart.md` validation end to end locally: pytest, build, migration proof, local click-through of Day 1 full 6-gate flow
-- [ ] T047 [P] Read back every new Vietnamese string added in Phases 5–6 (diacritics by eye, no scripts); fix anything wrong before push
-- [ ] T048 Push to GitHub (snapshot push, as in v1)
-- [ ] T049 Redeploy frontend: `vercel deploy --prod --yes --scope tuan-learning-tracker`
-- [ ] T050 Manually deploy backend on Render (auto-deploy does not fire on API pushes) and wait for Live
-- [ ] T051 Live verification: `/api/health`, `/api/progress` (numbers equal the T002 baseline), `/api/tracks` (v2 fields present, accented), `/api/tracks/1/skill-tree`, Day 1 gate flow on the production site
-- [ ] T052 Report to Tuan with the live link + what changed vs v1
+- [x] T046 Run `quickstart.md` validation end to end locally: pytest, build, migration proof, local click-through of Day 1 full 6-gate flow
+- [x] T047 [P] Read back every new Vietnamese string added in Phases 5–6 (diacritics by eye, no scripts); fix anything wrong before push
+- [x] T048 Push to GitHub (snapshot push, as in v1)
+- [x] T049 Redeploy frontend: `vercel deploy --prod --yes --scope tuan-learning-tracker`
+- [x] T050 Manually deploy backend on Render (auto-deploy does not fire on API pushes) and wait for Live
+- [x] T051 Live verification: `/api/health`, `/api/progress` (numbers equal the T002 baseline), `/api/tracks` (v2 fields present, accented), `/api/tracks/1/skill-tree`, Day 1 gate flow on the production site
+- [x] T052 Report to Tuan with the live link + what changed vs v1
 
 ## Dependencies & Execution Order
 
@@ -159,6 +159,10 @@ effort and is split per Module.
 > Phase 6 endpoints done 06/11/2026 (local, production NOT touched): `POST /api/days/{id}/flow-puzzle` and `POST /api/days/{id}/bug` per contracts/api-v2.md; tests written first (9 failed, 2 passed) then implementation; pytest 35 passed. Correction vs T033 wording: self-note length is NOT validated by PUT /work (drafts must save) — it is enforced by the gate at POST /complete (400 with the self-note gate listed), per the T017 correction. Test fix during the run: an empty Day used to test the 400 path must sort before Day 1 (number 0), otherwise the 403 lock fires first.
 
 > Phase D done 06/11/2026 (local, production NOT touched): skill-tree page `#/tree` (4 node states, locked nodes disabled, dashed extension nodes) linked from dashboard hero + nav; Enterprise Context Card, step-through flow diagram, Flow Puzzle (click-to-order), Spot the Bug (click line + reason, names which half was right), Feynman section (paste-blocked self-note, 2 follow-ups, summary, 5 self-test recap) on the Day page; 7-gate display replaced by 6-gate display everywhere (footer, hero, Day header, gates card). Decisions: (1) the v1 "Kiểm tra hiểu bài" card (explain/flow/role/variant) was REMOVED from the Day page — those fields are no longer gates and the unified Feynman section replaces them; (2) `bug_line`/`bug_correct_reason` are deliberately NOT in the frontend `Day` type — the answer key never reaches the browser. Verification: `npm run build` (tsc + vite) passes; remote-browser check was IMPOSSIBLE (remote browser rejects localhost, localtunnel 403, cloudflared TLS failure) — verified instead with a local jsdom render of the production build against a temp backend: tree page (Đã mở/Chưa mở/Mở rộng) and Day 1 page (enterprise card, Bước 1/4, puzzle, bug, Feynman, 6 cổng) all render with zero JS errors.
+
+> Tree rework 06/11/2026 (Tuan: "không giống idea" — the grid was not a tree): SkillTreePage rebuilt as a real vertical tree — one trunk line top→bottom in Day order, a state-coloured dot per Day on the trunk, module labels on the trunk, and the 6 extension topics as dashed side branches attached right after their related Day (verified in DOM order: RFC 7807 after Day 4, React Query after Day 13). No backend change; jsdom render check of the production build: trunk + 3 module labels + 14 day rows + 6 branch rows + 17 dots, locked nodes disabled, zero JS errors. Local only — NOT deployed yet, awaiting Tuan's call on deploy.
+
+> Phase E done 06/11/2026 — v2 LIVE: snapshot push b4c88a304a5f9ac77b3c2c45082640b71d7e3892 (70 files, sync record updated; note: the record was missing entries for 82b45047/f8f5f11, the new entry covers all paths), Vercel redeploy --prod (Hobby verified before deploy, same URL), Render manual deploy dep-dbmoh53rjlhs73c34980 Live 14:58. Live verification: /api/health ok, /api/progress 0/50, 0/14 (baseline preserved, migration ran on Neon at startup), /api/tracks v2 fields + diacritics, skill-tree Day 1 available / rest locked, Day 1 6 gates all unpassed. T046 e2e (Day 1 full 6-gate flow on temp DB) passed; T047 read-back of all 14 Days + frontend strings by eye, no diacritic errors. Remote-browser UI check was impossible (localhost blocked, tunnels blocked); verified via local jsdom render of the production build instead.
 
 - **Phase 6 (US4)**: Depends on Phase 2 (schema) + T014 (gates); puzzle/bug endpoints need the gate shape; content tasks T036–T039 can run in parallel with Phases 3–5.
 - **Phase 7 (US5)**: Depends on Phases 2–6 working locally.
