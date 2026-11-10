@@ -387,3 +387,43 @@ pre { background: #0f172a; color: #e2e8f0; padding: 16px; border-radius: 12px; o
   .grid { grid-template-columns: 1fr; }
   .hero-actions button { width: 100%; }
 }
+
+/* --- ERD: Bản đồ dữ liệu (spec 002) --- */
+.erd-stages { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 16px; }
+.erd-stage-btn { border: 1px solid #cbd5e1; background: #fff; color: var(--brand-dark); border-radius: 999px; padding: 6px 14px; font-weight: 700; cursor: pointer; }
+.erd-stage-btn:hover { border-color: var(--brand); }
+.erd-stage-active { background: var(--brand); border-color: var(--brand); color: #fff; }
+.erd-stage-title { margin: 4px 0 6px; }
+.erd-diagram { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0 8px; }
+@media (max-width: 640px) { .erd-diagram { grid-template-columns: 1fr; } }
+.erd-table { display: flex; flex-direction: column; align-items: stretch; gap: 8px; text-align: left; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; cursor: pointer; font: inherit; color: inherit; }
+button.erd-table:hover { border-color: var(--brand); }
+.erd-selected { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand-soft); }
+.erd-table-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.erd-table-name { font-family: monospace; font-weight: 700; font-size: 17px; color: var(--brand-dark); }
+.erd-kind { font-size: 12px; font-weight: 700; background: var(--brand-soft); color: var(--brand-dark); border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+.erd-table-note { font-size: 14px; color: #475569; }
+.erd-cols { display: flex; flex-direction: column; gap: 4px; }
+.erd-col { display: flex; align-items: center; gap: 8px; border-top: 1px dashed #e2e8f0; padding: 5px 0 0; font-size: 14px; }
+.erd-col-name { font-family: monospace; font-weight: 700; }
+.erd-col-type { font-family: monospace; color: #64748b; font-size: 13px; }
+.erd-col-new { background: #fef9c3; border-radius: 6px; padding: 5px 6px 0; margin: 0 -6px; }
+.erd-badge { font-size: 11px; font-weight: 800; border-radius: 999px; padding: 2px 8px; margin-left: auto; white-space: nowrap; }
+.erd-badge-pk { background: #dbeafe; color: #1e3a8a; }
+.erd-badge-fk { background: #ede9fe; color: #5b21b6; }
+.erd-badge-unique { background: #fee2e2; color: #991b1b; }
+.erd-badge-new { background: #fef08a; color: #854d0e; }
+.erd-hint { font-size: 13px; color: #94a3b8; }
+.erd-ghost { border-style: dashed; background: #f8fafc; cursor: default; }
+.erd-ghost-label { font-weight: 700; color: #94a3b8; margin: 0; }
+.erd-ghost p { color: #94a3b8; margin: 0; }
+.erd-fk { font-size: 14px; background: #ede9fe; border-radius: 8px; padding: 8px 12px; color: #4c1d95; }
+.erd-fk code { font-weight: 700; }
+.erd-detail { margin-top: 16px; }
+.erd-illustration { background: #fef9c3; border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+.erd-detail-table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 8px 0 16px; }
+.erd-detail-table th, .erd-detail-table td { text-align: left; border-bottom: 1px solid #e2e8f0; padding: 6px 8px; vertical-align: top; }
+.erd-detail-table th { color: #475569; }
+.erd-detail-table .erd-badge { margin-left: 6px; }
+.erd-row-new { background: #fefce8; }
+.erd-sql { background: #0f172a; color: #e2e8f0; border-radius: 8px; padding: 12px; overflow-x: auto; font-size: 13px; line-height: 1.5; }

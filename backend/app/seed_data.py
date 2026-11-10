@@ -42,6 +42,180 @@ TREE = {
     "tests/test_bookings.py": "pytest: 4 trường hợp — thành công, thiếu dữ liệu, trùng id, xung đột",
 }
 
+# --- ERD: sơ đồ dữ liệu Booking API lớn dần theo Day (spec 002) ---
+# Chỉ 5 mốc mà cách lưu dữ liệu thay đổi. Cột của audit_log là MINH HỌA:
+# Day 8 chỉ nói INSERT audit_log, seed không định nghĩa cột thật.
+# Dòng mẫu: b1 của An 10:00-11:00, b2 của Bình 13:00-14:00 (ngày 07/11/2026).
+ERD_STAGES = [
+    {
+        "day": 1,
+        "title": "Day 1 — Chỉ có model, chưa lưu gì",
+        "note": "Dữ liệu chỉ sống trong request: client gửi JSON, Pydantic parse thành BookingCreate, hợp lệ thì chuyển sang service. Chưa có chỗ nào lưu booking.",
+        "tables": [
+            {
+                "name": "bookings", "kind": "model", "present": True,
+                "note": "Model Pydantic BookingCreate — chưa phải bảng database.",
+                "columns": [
+                    {"name": "id", "type": "str", "note": "Mã booking do client gửi", "badge": "PK"},
+                    {"name": "customer", "type": "str", "note": "Tên khách"},
+                    {"name": "start", "type": "datetime", "note": "Giờ bắt đầu"},
+                    {"name": "end", "type": "datetime", "note": "Giờ kết thúc, phải sau start"},
+                ],
+                "rows": [],
+                "sql": "-- Chưa có bảng nào. Dữ liệu chỉ sống trong request rồi biến mất.",
+            },
+            {
+                "name": "audit_log", "kind": "table", "present": False,
+                "note": "Chưa xuất hiện — mở ở Day 8.",
+                "columns": [], "rows": [], "sql": "",
+            },
+        ],
+    },
+    {
+        "day": 2,
+        "title": "Day 2 — Dict trong bộ nhớ",
+        "note": "Booking được lưu trong dict theo id: bookings[b.id] = b. Restart server là mất hết, chưa có database.",
+        "tables": [
+            {
+                "name": "bookings", "kind": "dict", "present": True,
+                "note": "Dict trong bộ nhớ — key là id, value là BookingCreate.",
+                "columns": [
+                    {"name": "id", "type": "str", "note": "Khóa của dict, cũng là mã booking", "badge": "PK"},
+                    {"name": "customer", "type": "str", "note": "Tên khách"},
+                    {"name": "start", "type": "datetime", "note": "Giờ bắt đầu"},
+                    {"name": "end", "type": "datetime", "note": "Giờ kết thúc, phải sau start"},
+                ],
+                "rows": [
+                    ["b1", "An", "2026-11-07T10:00", "2026-11-07T11:00"],
+                    ["b2", "Bình", "2026-11-07T13:00", "2026-11-07T14:00"],
+                ],
+                "sql": "# Chưa có bảng nào — bookings chỉ là dict trong bộ nhớ:\nbookings = {}  # key: id, value: BookingCreate",
+            },
+            {
+                "name": "audit_log", "kind": "table", "present": False,
+                "note": "Chưa xuất hiện — mở ở Day 8.",
+                "columns": [], "rows": [], "sql": "",
+            },
+        ],
+    },
+    {
+        "day": 8,
+        "title": "Day 8 — Hai bảng thật, ghi cùng một transaction",
+        "note": "Booking và audit_log được ghi thật vào database trong một transaction: INSERT booking + INSERT audit_log, commit một lần. Một trong hai lỗi thì rollback cả hai.",
+        "tables": [
+            {
+                "name": "bookings", "kind": "table", "present": True,
+                "note": "Bảng thật trong database.",
+                "columns": [
+                    {"name": "id", "type": "TEXT", "note": "Khóa chính", "badge": "PK"},
+                    {"name": "customer", "type": "TEXT", "note": "Tên khách"},
+                    {"name": "start", "type": "TIMESTAMPTZ", "note": "Giờ bắt đầu"},
+                    {"name": "end", "type": "TIMESTAMPTZ", "note": "Giờ kết thúc, phải sau start"},
+                ],
+                "rows": [
+                    ["b1", "An", "2026-11-07T10:00", "2026-11-07T11:00"],
+                    ["b2", "Bình", "2026-11-07T13:00", "2026-11-07T14:00"],
+                ],
+                "sql": "CREATE TABLE bookings (\n    id TEXT PRIMARY KEY,\n    customer TEXT NOT NULL,\n    start TIMESTAMPTZ NOT NULL,\n    end TIMESTAMPTZ NOT NULL\n);",
+            },
+            {
+                "name": "audit_log", "kind": "table", "present": True,
+                "note": "Ghi lại ai đã tạo booking nào, lúc nào — để đối soát sau này.",
+                "illustration": "Cột của audit_log là minh họa — Day 8 chỉ nói INSERT audit_log, chốt cột thật khi triển khai.",
+                "columns": [
+                    {"name": "id", "type": "SERIAL", "note": "Khóa chính", "badge": "PK"},
+                    {"name": "booking_id", "type": "TEXT", "note": "Trỏ tới bookings.id", "badge": "FK"},
+                    {"name": "action", "type": "TEXT", "note": "Việc đã làm: created, cancelled..."},
+                    {"name": "created_at", "type": "TIMESTAMPTZ", "note": "Lúc ghi log"},
+                ],
+                "rows": [
+                    ["1", "b1", "created", "2026-11-07T10:00"],
+                ],
+                "sql": "CREATE TABLE audit_log (\n    id SERIAL PRIMARY KEY,\n    booking_id TEXT REFERENCES bookings(id),\n    action TEXT NOT NULL,\n    created_at TIMESTAMPTZ DEFAULT now()\n);",
+                "fk": {"column": "booking_id", "to_table": "bookings", "to_column": "id"},
+            },
+        ],
+    },
+    {
+        "day": 9,
+        "title": "Day 9 — Thêm khóa UNIQUE chống trùng đồng thời",
+        "note": "Hai request cùng đặt một giờ, cả hai đều kiểm tra thấy trống. Chỉ có ràng buộc UNIQUE ở tầng database mới chặn được request thứ hai — code kiểm tra bằng mắt không đủ.",
+        "tables": [
+            {
+                "name": "bookings", "kind": "table", "present": True,
+                "note": "Bảng thật trong database, thêm ràng buộc duy nhất trên giờ bắt đầu.",
+                "columns": [
+                    {"name": "id", "type": "TEXT", "note": "Khóa chính", "badge": "PK"},
+                    {"name": "customer", "type": "TEXT", "note": "Tên khách"},
+                    {"name": "start", "type": "TIMESTAMPTZ", "note": "Giờ bắt đầu — không được trùng", "badge": "UNIQUE"},
+                    {"name": "end", "type": "TIMESTAMPTZ", "note": "Giờ kết thúc, phải sau start"},
+                ],
+                "rows": [
+                    ["b1", "An", "2026-11-07T10:00", "2026-11-07T11:00"],
+                    ["b2", "Bình", "2026-11-07T13:00", "2026-11-07T14:00"],
+                ],
+                "sql": "-- Thêm ràng buộc duy nhất chống trùng đồng thời:\nALTER TABLE bookings ADD CONSTRAINT uq_bookings_start UNIQUE (start);",
+            },
+            {
+                "name": "audit_log", "kind": "table", "present": True,
+                "note": "Ghi lại ai đã tạo booking nào, lúc nào — để đối soát sau này.",
+                "illustration": "Cột của audit_log là minh họa — Day 8 chỉ nói INSERT audit_log, chốt cột thật khi triển khai.",
+                "columns": [
+                    {"name": "id", "type": "SERIAL", "note": "Khóa chính", "badge": "PK"},
+                    {"name": "booking_id", "type": "TEXT", "note": "Trỏ tới bookings.id", "badge": "FK"},
+                    {"name": "action", "type": "TEXT", "note": "Việc đã làm: created, cancelled..."},
+                    {"name": "created_at", "type": "TIMESTAMPTZ", "note": "Lúc ghi log"},
+                ],
+                "rows": [
+                    ["1", "b1", "created", "2026-11-07T10:00"],
+                ],
+                "sql": "CREATE TABLE audit_log (\n    id SERIAL PRIMARY KEY,\n    booking_id TEXT REFERENCES bookings(id),\n    action TEXT NOT NULL,\n    created_at TIMESTAMPTZ DEFAULT now()\n);",
+                "fk": {"column": "booking_id", "to_table": "bookings", "to_column": "id"},
+            },
+        ],
+    },
+    {
+        "day": 10,
+        "title": "Day 10 — Thêm cột status, hủy bằng đổi trạng thái",
+        "note": "Hủy booking không xóa dòng — chỉ đổi status thành cancelled. Lịch sử còn nguyên để đối soát và hoàn cọc.",
+        "tables": [
+            {
+                "name": "bookings", "kind": "table", "present": True,
+                "note": "Bảng thật trong database, thêm cột trạng thái.",
+                "columns": [
+                    {"name": "id", "type": "TEXT", "note": "Khóa chính", "badge": "PK"},
+                    {"name": "customer", "type": "TEXT", "note": "Tên khách"},
+                    {"name": "start", "type": "TIMESTAMPTZ", "note": "Giờ bắt đầu — không được trùng", "badge": "UNIQUE"},
+                    {"name": "end", "type": "TIMESTAMPTZ", "note": "Giờ kết thúc, phải sau start"},
+                    {"name": "status", "type": "TEXT", "note": "confirmed / cancelled — hủy bằng đổi trạng thái, không xóa", "is_new": True},
+                ],
+                "rows": [
+                    ["b1", "An", "2026-11-07T10:00", "2026-11-07T11:00", "confirmed"],
+                    ["b2", "Bình", "2026-11-07T13:00", "2026-11-07T14:00", "cancelled"],
+                ],
+                "sql": "-- Thêm cột trạng thái, hủy bằng đổi trạng thái:\nALTER TABLE bookings ADD COLUMN status TEXT NOT NULL DEFAULT 'confirmed';",
+            },
+            {
+                "name": "audit_log", "kind": "table", "present": True,
+                "note": "Ghi lại ai đã tạo booking nào, lúc nào — để đối soát sau này.",
+                "illustration": "Cột của audit_log là minh họa — Day 8 chỉ nói INSERT audit_log, chốt cột thật khi triển khai.",
+                "columns": [
+                    {"name": "id", "type": "SERIAL", "note": "Khóa chính", "badge": "PK"},
+                    {"name": "booking_id", "type": "TEXT", "note": "Trỏ tới bookings.id", "badge": "FK"},
+                    {"name": "action", "type": "TEXT", "note": "Việc đã làm: created, cancelled..."},
+                    {"name": "created_at", "type": "TIMESTAMPTZ", "note": "Lúc ghi log"},
+                ],
+                "rows": [
+                    ["1", "b1", "created", "2026-11-07T10:00"],
+                    ["2", "b2", "cancelled", "2026-11-07T14:30"],
+                ],
+                "sql": "CREATE TABLE audit_log (\n    id SERIAL PRIMARY KEY,\n    booking_id TEXT REFERENCES bookings(id),\n    action TEXT NOT NULL,\n    created_at TIMESTAMPTZ DEFAULT now()\n);",
+                "fk": {"column": "booking_id", "to_table": "bookings", "to_column": "id"},
+            },
+        ],
+    },
+]
+
 def q(question, options, correct, explanation):
     return {"question": question, "options": options, "correct_index": correct, "explanation": explanation}
 

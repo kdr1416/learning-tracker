@@ -204,3 +204,37 @@ class ProgressOut(BaseModel):
     completed_days: int
     days_by_module: list[dict]
     journal_count: int
+
+
+# --- ERD (spec 002) ---
+class ErdFk(BaseModel):
+    column: str
+    to_table: str
+    to_column: str
+
+
+class ErdColumn(BaseModel):
+    name: str
+    type: str
+    note: str = ""
+    badge: str | None = None
+    is_new: bool = False
+
+
+class ErdTable(BaseModel):
+    name: str
+    kind: str  # model | dict | table
+    present: bool = True
+    note: str = ""
+    illustration: str = ""
+    columns: list[ErdColumn] = []
+    rows: list[list[str]] = []
+    sql: str = ""
+    fk: ErdFk | None = None
+
+
+class ErdStage(BaseModel):
+    day: int
+    title: str
+    note: str = ""
+    tables: list[ErdTable] = []

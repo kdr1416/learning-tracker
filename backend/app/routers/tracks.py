@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from .. import models, repositories, schemas
-from ..seed_data import METHOD
+from ..seed_data import ERD_STAGES, METHOD
 from ..services import day_state, evaluate_day_gates
 from .days import _work_dict
 
@@ -61,6 +61,12 @@ def list_tracks(db: Session = Depends(get_db)):
 def get_method():
     """Phương pháp Viết - Test - Giải thích + luật bài kiểm tra hàng ngày."""
     return METHOD
+
+
+@router.get("/erd", response_model=list[schemas.ErdStage])
+def get_erd():
+    """Sơ đồ dữ liệu Booking API lớn dần theo Day (nội dung tĩnh từ seed)."""
+    return ERD_STAGES
 
 
 @router.get("/tracks/{track_id}/skill-tree", response_model=schemas.SkillTreeOut)

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { api, type ChecklistItem, type Day, type DayStatus, type DayWork, type JournalEntry, type Progress, type SkillTree, type Track } from './api'
+import { api, type ChecklistItem, type Day, type DayStatus, type DayWork, type ErdStage, type ErdTable, type JournalEntry, type Progress, type SkillTree, type Track } from './api'
 
-type Route = { page: 'dashboard' | 'days' | 'day' | 'checklist' | 'journal' | 'method' | 'tree'; dayNumber?: number }
+type Route = { page: 'dashboard' | 'days' | 'day' | 'checklist' | 'journal' | 'method' | 'tree' | 'erd'; dayNumber?: number }
 
 function parseHash(): Route {
   const h = window.location.hash.replace(/^#\/?/, '')
@@ -11,6 +11,7 @@ function parseHash(): Route {
   if (h === 'checklist') return { page: 'checklist' }
   if (h === 'journal') return { page: 'journal' }
   if (h === 'method') return { page: 'method' }
+  if (h === 'erd') return { page: 'erd' }
   return { page: 'dashboard' }
 }
 const go = (hash: string) => { window.location.hash = hash }
@@ -19,6 +20,7 @@ const NAV: { hash: string; label: string; page: Route['page'] }[] = [
   { hash: '#/', label: 'Tổng quan', page: 'dashboard' },
   { hash: '#/days', label: 'Ngày 1–14', page: 'days' },
   { hash: '#/tree', label: 'Cây kỹ năng', page: 'tree' },
+  { hash: '#/erd', label: 'Bản đồ dữ liệu', page: 'erd' },
   { hash: '#/checklist', label: 'Checklist', page: 'checklist' },
   { hash: '#/journal', label: 'Nhật ký', page: 'journal' },
   { hash: '#/method', label: 'Phương pháp', page: 'method' },
@@ -66,6 +68,7 @@ export default function App() {
         {route.page === 'checklist' && <ChecklistPage />}
         {route.page === 'journal' && <JournalPage />}
         {route.page === 'method' && <MethodPage />}
+        {route.page === 'erd' && <ErdPage />}
       </main>
       <footer className="site-footer">
         <p>Phương pháp: Viết – Test – Giải thích · Một ngày chỉ tính là xong khi qua đủ 6 cổng.</p>
@@ -718,6 +721,129 @@ function MethodPage() {
       <div className="card"><h3>Quy tắc dùng AI</h3><ul>{m.ai_rules.map((r, i) => <li key={i}>{r}</li>)}</ul></div>
       <div className="card"><h3>Bài kiểm tra hàng ngày</h3>
         <p>Mỗi ngày 45 phút, bắt đầu bằng kiểm tra từ file trống, không AI viết code lõi. Chán thì làm bản micro 15 phút thay vì bỏ hẳn. Fail thì hôm sau làm lại đúng bài đó.</p></div>
+    </div>
+  )
+}
+
+const ERD_KIND_LABEL: Record<string, string> = {
+  model: 'Model Pydantic',
+  dict: 'Dict trong bộ nhớ',
+  table: 'Bảng database',
+}
+
+function ErdTableCard({ table, selected, onSelect }: { table: ErdTable; selected: boolean; onSelect: () => void }) {
+  if (!table.present) {
+    return (
+      <div className="erd-table erd-ghost" aria-label={`${table.name} chưa xuất hiện`}>
+        <div className="erd-table-head"><span className="erd-table-name">{table.name}</span></div>
+        <p className="erd-ghost-label">Mở ở Day 8</p>
+        <p>{table.note}</p>
+      </div>
+    )
+  }
+  return (
+    <button
+      type="button"
+      className={`erd-table${selected ? ' erd-selected' : ''}`}
+      onClick={onSelect}
+      aria-pressed={selected}
+    >
+      <span className="erd-table-head">
+        <span className="erd-table-name">{table.name}</span>
+        <span className="erd-kind">{ERD_KIND_LABEL[table.kind] ?? table.kind}</span>
+      </span>
+      <span className="erd-table-note">{table.note}</span>
+      <span className="erd-cols">
+        {table.columns.map(c => (
+          <span className={`erd-col${c.is_new ? ' erd-col-new' : ''}`} key={c.name}>
+            <span className="erd-col-name">{c.name}</span>
+            <span className="erd-col-type">{c.type}</span>
+            {c.badge && <span className={`erd-badge erd-badge-${c.badge.toLowerCase()}`}>{c.badge === 'UNIQUE' ? '🔒 UNIQUE' : c.badge}</span>}
+            {c.is_new && <span className="erd-badge erd-badge-new">MỚI</span>}
+          </span>
+        ))}
+      </span>
+      <span className="erd-hint">Bấm để xem dòng mẫu và SQL ↓</span>
+    </button>
+  )
+}
+
+function ErdPage() {
+  const [stages, setStages] = useState<ErdStage[] | null>(null)
+  const [stageIdx, setStageIdx] = useState(0)
+  const [selectedTable, setSelectedTable] = useState('bookings')
+  const [error, setError] = useState('')
+  useEffect(() => { api.erd().then(setStages).catch((e: Error) => setError(e.message)) }, [])
+  if (error) return <p className="error">Không tải được sơ đồ dữ liệu: {error}</p>
+  if (!stages) return <p className="loading">Đang tải…</p>
+  const stage = stages[stageIdx]
+  const table = stage.tables.find(t => t.name === selectedTable) ?? stage.tables.find(t => t.present) ?? stage.tables[0]
+  const fkTable = stage.tables.find(t => t.fk)
+  return (
+    <div>
+      <div className="page-head">
+        <h2>Bản đồ dữ liệu — Booking API</h2>
+        <p>Chọn một mốc Day để xem dữ liệu sống ở đâu vào lúc đó. Bấm vào một bảng để xem cột, dòng mẫu và SQL.</p>
+      </div>
+      <div className="erd-stages" role="tablist" aria-label="Chọn mốc Day">
+        {stages.map((s, i) => (
+          <button
+            key={s.day}
+            type="button"
+            role="tab"
+            aria-selected={i === stageIdx}
+            className={`erd-stage-btn${i === stageIdx ? ' erd-stage-active' : ''}`}
+            onClick={() => { setStageIdx(i); setSelectedTable('bookings') }}
+          >Day {s.day}</button>
+        ))}
+      </div>
+      <h3 className="erd-stage-title">{stage.title}</h3>
+      <p>{stage.note}</p>
+      <div className="erd-diagram">
+        {stage.tables.map(t => (
+          <ErdTableCard key={t.name} table={t} selected={t.present && t.name === table.name} onSelect={() => setSelectedTable(t.name)} />
+        ))}
+      </div>
+      {fkTable?.fk && (
+        <p className="erd-fk">Khóa ngoại: <code>audit_log.{fkTable.fk.column}</code> → <code>{fkTable.fk.to_table}.{fkTable.fk.to_column}</code></p>
+      )}
+      {table.present && (
+        <div className="card erd-detail">
+          <h3>Chi tiết bảng {table.name}</h3>
+          {table.illustration && <p className="erd-illustration">⚠ {table.illustration}</p>}
+          <table className="erd-detail-table">
+            <thead><tr><th>Cột</th><th>Kiểu</th><th>Ý nghĩa</th></tr></thead>
+            <tbody>
+              {table.columns.map(c => (
+                <tr key={c.name} className={c.is_new ? 'erd-row-new' : ''}>
+                  <td><code>{c.name}</code>{c.badge && <span className={`erd-badge erd-badge-${c.badge.toLowerCase()}`}>{c.badge === 'UNIQUE' ? '🔒 UNIQUE' : c.badge}</span>}{c.is_new && <span className="erd-badge erd-badge-new">MỚI</span>}</td>
+                  <td><code>{c.type}</code></td>
+                  <td>{c.note}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {table.rows.length > 0 && (
+            <>
+              <h4>Dòng mẫu</h4>
+              <table className="erd-detail-table">
+                <thead><tr>{table.columns.map(c => <th key={c.name}><code>{c.name}</code></th>)}</tr></thead>
+                <tbody>
+                  {table.rows.map((row, i) => (
+                    <tr key={i}>{row.map((cell, j) => <td key={j}>{cell}</td>)}</tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+          {table.sql && (
+            <>
+              <h4>SQL</h4>
+              <pre className="erd-sql">{table.sql}</pre>
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }

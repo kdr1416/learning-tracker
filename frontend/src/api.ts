@@ -58,6 +58,13 @@ export interface SkillTreeModule {
 export interface SkillTree { track_id: number; modules: SkillTreeModule[] }
 export interface ChecklistItem { id: number; group: string; text: string; order: number; done: boolean }
 export interface JournalEntry { id: number; date: string; topic: string; done: string; stuck: string; ai_use: string; can_explain: string; next_step: string }
+export interface ErdColumn { name: string; type: string; note: string; badge: string | null; is_new: boolean }
+export interface ErdFk { column: string; to_table: string; to_column: string }
+export interface ErdTable {
+  name: string; kind: 'model' | 'dict' | 'table'; present: boolean; note: string
+  illustration: string; columns: ErdColumn[]; rows: string[][]; sql: string; fk: ErdFk | null
+}
+export interface ErdStage { day: number; title: string; note: string; tables: ErdTable[] }
 export interface Progress {
   total_checklist: number; done_checklist: number; total_days: number
   completed_days: number; days_by_module: { module: string; total: number; done: number }[]
@@ -67,6 +74,7 @@ export interface Progress {
 export const api = {
   tracks: () => req<Track[]>('/tracks'),
   method: () => req<{ name: string; steps: { title: string; body: string }[]; ai_rules: string[]; daily_test: Record<string, unknown> }>('/method'),
+  erd: () => req<ErdStage[]>('/erd'),
   progress: () => req<Progress>('/progress'),
   dayStatus: (id: number) => req<DayStatus>(`/days/${id}/status`),
   submitQuiz: (id: number, answers: number[]) =>
