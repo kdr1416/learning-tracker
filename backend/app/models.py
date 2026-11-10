@@ -56,6 +56,7 @@ class Day(Base):
     bug_line = Column(Integer, nullable=True)  # 0-based index of the wrong line
     bug_reasons = Column(Text, default="[]", server_default="[]")  # JSON list of 4 strings
     bug_correct_reason = Column(Integer, nullable=True)  # index into bug_reasons
+    correct_code = Column(Text, default="", server_default="")  # fixed version, spec 003
     # --- v2: Feynman follow-ups ---
     followup_questions = Column(Text, default="[]", server_default="[]")  # JSON list, exactly 2
     # --- v2: flow simulator scenarios ---

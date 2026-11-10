@@ -28,6 +28,7 @@ NEW_COLUMNS: list[tuple[str, str, str, str | None]] = [
     ("days", "bug_line", "INTEGER", None),
     ("days", "bug_reasons", "TEXT", "'[]'"),
     ("days", "bug_correct_reason", "INTEGER", None),
+    ("days", "correct_code", "TEXT", "''"),
     ("days", "followup_questions", "TEXT", "'[]'"),
     ("days", "sim_scenarios", "TEXT", "'[]'"),
     ("days", "flow_step_code", "TEXT", "'[]'"),

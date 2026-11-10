@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api, type ChecklistItem, type Day, type DayStatus, type DayWork, type ErdStage, type ErdTable, type JournalEntry, type Progress, type SkillTree, type Track } from './api'
+import { api, type ChecklistItem, type Day, type DayStatus, type DayWork, type ErdStage, type ErdTable, type JournalEntry, type Progress, type RetroModule, type SkillTree, type Track } from './api'
 
 type Route = { page: 'dashboard' | 'days' | 'day' | 'checklist' | 'journal' | 'method' | 'tree' | 'erd'; dayNumber?: number }
 
@@ -130,7 +130,63 @@ function Dashboard() {
           <div className="progress"><div style={{ width: `${m.total ? (m.done / m.total) * 100 : 0}%` }} /></div>
         </div>
       ))}
+      <RetroSection />
     </div>
+  )
+}
+
+function RetroSection() {
+  const [mods, setMods] = useState<RetroModule[] | null>(null)
+  const [answers, setAnswers] = useState<Record<number, string[]>>({})
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+  useEffect(() => { api.retro().then(setMods).catch(() => undefined) }, [])
+  if (!mods) return null
+  const save = async (m: RetroModule) => {
+    setErr(''); setMsg('')
+    const a = answers[m.module_id] ?? ['', '', '']
+    if (a.some(x => !x.trim())) { setErr('Hãy trả lời đủ 3 câu hỏi.'); return }
+    try {
+      await api.saveRetro(m.module_id, a)
+      setMods(await api.retro())
+      setMsg(`Đã lưu retro ${m.title}.`)
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+  }
+  return (
+    <section>
+      <h2>Nhìn lại theo Module</h2>
+      <p className="muted">Hoàn thành hết một Module thì thẻ Retro mở ra: nhìn lại từ dữ liệu thật rồi trả lời 3 câu hỏi, lưu vào nhật ký.</p>
+      {mods.map(m => (
+        <div className="card retro-card" key={m.module_id}>
+          <div className="module-progress-head">
+            <h3>{m.title}</h3>
+            <span className="pill">{m.completed_days}/{m.total_days} Day</span>
+          </div>
+          {m.weakest_skill && <p>Kỹ năng yếu nhất: <b>{m.weakest_skill.skill}</b> (trượt ở {m.weakest_skill.count} Day chưa xong)</p>}
+          {m.next_day && <p>Day tiếp theo: <b>Day {m.next_day.number}</b></p>}
+          {m.can_retro && !m.retro_done ? (
+            <>
+              {m.questions.map((q, i) => (
+                <label key={i} className="retro-q">{q}
+                  <textarea value={(answers[m.module_id] ?? ['', '', ''])[i] ?? ''} rows={2} onChange={e => {
+                    const cur = [...(answers[m.module_id] ?? ['', '', ''])]
+                    cur[i] = e.target.value
+                    setAnswers(prev => ({ ...prev, [m.module_id]: cur }))
+                  }} />
+                </label>
+              ))}
+              <button onClick={() => save(m)}>Lưu retro vào nhật ký</button>
+            </>
+          ) : m.retro_done ? (
+            <p className="ok">Đã viết retro ngày {m.retro_date}. <button className="secondary" onClick={() => go('#/journal')}>Xem nhật ký</button></p>
+          ) : (
+            <p className="muted">Chưa mở — xong hết {m.total_days} Day trong Module này thì viết retro.</p>
+          )}
+        </div>
+      ))}
+      {msg && <p className="ok">{msg}</p>}
+      {err && <p className="error">{err}</p>}
+    </section>
   )
 }
 
@@ -348,7 +404,7 @@ function DayDetail({ day }: { day: Day }) {
   const [puzzleDone, setPuzzleDone] = useState(false)
   const [selLine, setSelLine] = useState<number | null>(null)
   const [selReason, setSelReason] = useState<number | null>(null)
-  const [bugResult, setBugResult] = useState<{ passed: boolean; line_correct?: boolean; reason_correct?: boolean } | null>(null)
+  const [bugResult, setBugResult] = useState<{ passed: boolean; line_correct?: boolean; reason_correct?: boolean; diff_lines?: number[]; diff_lines_correct?: number[] } | null>(null)
   const [bugDone, setBugDone] = useState(false)
   const [pasteWarn, setPasteWarn] = useState(false)
   const refreshStatus = async () => {
@@ -426,6 +482,7 @@ function DayDetail({ day }: { day: Day }) {
     must: 'Bắt buộc phải vững', should: 'Nên vững', nice: 'Biết thêm thì tốt',
   }
   const bugLines = day.bug_code ? day.bug_code.split('\n') : []
+  const correctLines = day.correct_code ? day.correct_code.split('\n') : []
   return (
     <div>
       <button className="secondary" onClick={() => go('#/days')}>← Tất cả Day</button>
@@ -573,14 +630,44 @@ function DayDetail({ day }: { day: Day }) {
           <p className="ok">Đã bắt đúng lỗi — cổng này qua rồi.</p>
         ) : (
           <>
-            <p className="muted">Đoạn code dưới đây có đúng <b>một</b> dòng sai. Bấm chọn dòng nghi ngờ, rồi chọn lý do.</p>
-            <div className="bug-code">
-              {bugLines.map((line, i) => (
-                <button key={i} className={`bug-line ${selLine === i ? 'selected' : ''}`} onClick={() => setSelLine(i)}>
-                  <span className="bug-line-no">{i}</span><code>{line || ' '}</code>
-                </button>
-              ))}
-            </div>
+            {day.correct_code ? (
+              <>
+                <p className="muted">Hai đoạn code dưới đây chỉ khác nhau ở chỗ lỗi. So sánh hai bên, bấm chọn dòng khác nhau bên <b>Code sai</b>, rồi chọn lý do.</p>
+                <div className="bug-contrast">
+                  <div>
+                    <p className="bug-side-title">Code sai — bấm chọn dòng khác nhau</p>
+                    <div className="bug-code">
+                      {bugLines.map((line, i) => (
+                        <button key={i} className={`bug-line ${selLine === i ? 'selected' : ''} ${(bugResult?.diff_lines ?? []).includes(i) ? 'diff' : ''}`} onClick={() => setSelLine(i)}>
+                          <span className="bug-line-no">{i}</span><code>{line || ' '}</code>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="bug-side-title">Code đúng — để đối chiếu</p>
+                    <div className="bug-code">
+                      {correctLines.map((line, i) => (
+                        <div key={i} className={`bug-line ${((bugResult?.diff_lines_correct ?? []).includes(i)) ? 'diff' : ''}`}>
+                          <span className="bug-line-no">{i}</span><code>{line || ' '}</code>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="muted">Đoạn code dưới đây có đúng <b>một</b> dòng sai. Bấm chọn dòng nghi ngờ, rồi chọn lý do.</p>
+                <div className="bug-code">
+                  {bugLines.map((line, i) => (
+                    <button key={i} className={`bug-line ${selLine === i ? 'selected' : ''}`} onClick={() => setSelLine(i)}>
+                      <span className="bug-line-no">{i}</span><code>{line || ' '}</code>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
             <p><b>Vì sao dòng đó sai?</b></p>
             {day.bug_reasons.map((r, i) => (
               <button key={i} className={`quiz-opt ${selReason === i ? 'selected' : ''}`} onClick={() => setSelReason(i)}>
@@ -592,6 +679,7 @@ function DayDetail({ day }: { day: Day }) {
               <p className="error">
                 Chưa đúng — dòng bạn chọn {bugResult.line_correct ? 'đúng' : 'sai'}, lý do bạn chọn {bugResult.reason_correct ? 'đúng' : 'sai'}.
                 {bugResult.line_correct ? ' Đọc lại lý thuyết rồi chọn lý do khác.' : ' Đọc kỹ lại từng dòng rồi chọn lại.'}
+                {(bugResult.diff_lines?.length ?? 0) > 0 ? ' Chỗ khác nhau đã tô sáng ở cả hai bên.' : ''}
               </p>
             )}
           </>

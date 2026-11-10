@@ -142,11 +142,35 @@ def submit_flow_puzzle(day_id: int, payload: schemas.FlowPuzzleIn,
     return schemas.FlowPuzzleOut(passed=False, first_wrong_position=first_wrong)
 
 
+def diff_bug_lines(bug_code: str, correct_code: str) -> tuple[list[int], list[int]]:
+    """0-based differing line numbers between the buggy and the fixed code.
+
+    Uses difflib opcodes so multi-line diffs work (Day 5 drops 2 lines,
+    Day 3 changes 1 line inside a 3-line expression). Returns
+    (buggy_side_lines, fixed_side_lines)."""
+    import difflib
+    bug_lines = (bug_code or "").split("\n")
+    correct_lines = (correct_code or "").split("\n")
+    matcher = difflib.SequenceMatcher(None, bug_lines, correct_lines, autojunk=False)
+    diff_bug: list[int] = []
+    diff_correct: list[int] = []
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag in ("replace", "delete"):
+            diff_bug.extend(range(i1, i2))
+        if tag in ("replace", "insert"):
+            diff_correct.extend(range(j1, j2))
+    return diff_bug, diff_correct
+
+
 @router.post("/days/{day_id}/bug", response_model=schemas.BugOut)
 def submit_bug(day_id: int, payload: schemas.BugIn, db: Session = Depends(get_db)):
     """Spot the Bug: line AND reason must both be right. On failure the
     response names which half was right, so the learner re-reads the
-    relevant theory instead of guessing blindly."""
+    relevant theory instead of guessing blindly.
+
+    Days with a correct_code (spec 003, contrasting cases) accept any line
+    in the computed diff set; other Days compare against bug_line. The diff
+    is returned only AFTER a submission, never in the Day payload."""
     day = _get_day_or_404(db, day_id)
     _forbid_if_locked(db, day)
     if day.bug_line is None or day.bug_correct_reason is None:
@@ -155,13 +179,20 @@ def submit_bug(day_id: int, payload: schemas.BugIn, db: Session = Depends(get_db
     n_lines = len((day.bug_code or "").split("\n"))
     if not 0 <= payload.line < n_lines or not 0 <= payload.reason < len(reasons):
         raise HTTPException(422, "line hoặc reason ngoài phạm vi")
-    line_ok = payload.line == day.bug_line
+    diff_lines, diff_correct = ([], [])
+    if day.correct_code:
+        diff_lines, diff_correct = diff_bug_lines(day.bug_code or "", day.correct_code)
+        line_ok = payload.line in diff_lines
+    else:
+        line_ok = payload.line == day.bug_line
     reason_ok = payload.reason == day.bug_correct_reason
     if line_ok and reason_ok:
         repositories.upsert_work(db, day_id, {"bug_passed": True})
-        return schemas.BugOut(passed=True)
+        return schemas.BugOut(passed=True, diff_lines=diff_lines,
+                              diff_lines_correct=diff_correct)
     return schemas.BugOut(passed=False, line_correct=line_ok,
-                          reason_correct=reason_ok)
+                          reason_correct=reason_ok, diff_lines=diff_lines,
+                          diff_lines_correct=diff_correct)
 
 
 @router.post("/days/{day_id}/complete", response_model=schemas.DayStatusOut)

@@ -11,7 +11,19 @@
 - [x] T009 CSS cho trang ERD (thẻ bảng, huy hiệu UNIQUE, bảng mờ + nhãn "mở ở Day X", đường nối FK)
 - [x] T010 `npm run build` pass
 - [x] T011 Kiểm tra jsdom: đổi mốc Day 1→10, bấm bảng audit_log xem SQL, không lỗi JS
-- [ ] T012 Báo Tuan + hỏi deploy (frontend + backend, backend không cần migration)
+- [x] T012 Báo Tuan + hỏi deploy (frontend + backend, backend không cần migration)
+
+## Ghi chú deploy (10/11/2026)
+
+- GitHub snapshot commit a4ef4b345521f9e6921f0a2e76370bfe83435561 (đã xác nhận head
+  khớp trước và sau push); sync record đã thêm entry thứ 5 (76 paths).
+- Vercel: team tuan-learning-tracker đã kiểm tra Hobby trước khi deploy;
+  deployment frontend-f5e587l21.
+- Render: deploy thủ công dep-dbp8nr142hec73btt2h0, commit a4ef4b3, Live 10:14.
+- Kiểm tra live: /api/health ok, /api/progress 0/50 0/14 giữ nguyên,
+  /api/erd trả 5 mốc [1,2,8,9,10], Day 9 có UNIQUE, Day 10 có cột status.
+  Frontend production (bundle index-Gn_rYGZK.js) có "Bản đồ dữ liệu",
+  erd-stage-btn/erd-table/erd-badge và "Xem code" còn nguyên.
 
 ## Ghi chú kiểm tra (10/11/2026)
 

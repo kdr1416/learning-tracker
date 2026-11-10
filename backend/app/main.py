@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .database import Base, SessionLocal, engine
 from .migrate import migrate
-from .routers import checklist, days, journal, progress, tracks
+from .routers import checklist, days, journal, progress, retro, tracks
 from .seed import seed
 
 
@@ -48,6 +48,7 @@ app.include_router(days.router, prefix="/api")
 app.include_router(checklist.router, prefix="/api")
 app.include_router(journal.router, prefix="/api")
 app.include_router(progress.router, prefix="/api")
+app.include_router(retro.router, prefix="/api")
 
 
 @app.get("/api/health")

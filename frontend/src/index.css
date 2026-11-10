@@ -427,3 +427,16 @@ button.erd-table:hover { border-color: var(--brand); }
 .erd-detail-table .erd-badge { margin-left: 6px; }
 .erd-row-new { background: #fefce8; }
 .erd-sql { background: #0f172a; color: #e2e8f0; border-radius: 8px; padding: 12px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+
+/* --- Spot the Bug đối chứng (spec 003) --- */
+.bug-contrast { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+@media (max-width: 640px) { .bug-contrast { grid-template-columns: 1fr; } }
+.bug-side-title { font-size: 13px; font-weight: 700; color: #475569; margin: 0 0 6px; }
+.bug-contrast .bug-code { margin-bottom: 0; }
+.bug-line.diff { background: #fef08a; color: #422006; outline: 2px solid #eab308; }
+.bug-line.diff .bug-line-no { color: #854d0e; }
+.bug-line.diff.selected { background: var(--brand); color: #fff; outline: 2px solid #93c5fd; }
+
+/* --- Weekly Retro (spec 004) --- */
+.retro-q { display: block; font-weight: 700; margin: 12px 0 4px; }
+.retro-q textarea { display: block; width: 100%; margin-top: 4px; }
